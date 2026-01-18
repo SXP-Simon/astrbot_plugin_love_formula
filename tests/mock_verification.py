@@ -22,6 +22,10 @@ if plugins_dir not in sys.path:
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+# Robustly add /app for Docker environment
+if os.path.exists("/app") and "/app" not in sys.path:
+    sys.path.insert(0, "/app")
+
 print(f"Paths added:\nPlugins: {plugins_dir}\nProject: {project_root}")
 
 # Import as package to support relative imports in main.py

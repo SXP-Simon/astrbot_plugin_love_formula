@@ -1,10 +1,9 @@
 import os
 import logging
-from astrbot.core.star.star import Star
+from astrbot.core.star import Star
 from astrbot.core.star.context import Context
-from astrbot.core.event.model.event import AstrMessageEvent, EventMessageType
-from astrbot.core.event import filter
-from astrbot.core.platform.start_types import NakalType
+from astrbot.api.event import AstrMessageEvent, filter
+from astrbot.api.event.filter import EventMessageType
 
 from .src.persistence.database import DBManager
 from .src.persistence.repo import LoveRepo

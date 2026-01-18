@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as DateType
 from typing import Optional
 from sqlmodel import Field, SQLModel
 
@@ -9,7 +9,7 @@ class LoveDailyRef(SQLModel, table=True):
     __tablename__ = "love_daily_ref"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    date: date = Field(index=True)
+    date: DateType = Field(index=True)
     group_id: str = Field(index=True)
     user_id: str = Field(index=True)
 

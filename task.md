@@ -4,11 +4,12 @@
 - [x] Implement NapCat Handlers (`handlers`) <!-- id: 9 -->
 - [x] Implement Visual Renderer (`visual`) <!-- id: 11 -->
 - [x] Implement Main Entry (`main.py`) <!-- id: 114 -->
-- [ ] Refactor for AstrBot Compatibility <!-- id: 117 -->
+- [x] Refactor for AstrBot Compatibility <!-- id: 117 -->
     - [x] Analyze reference plugin structure <!-- id: 118 -->
     - [x] Create `_conf_schema.json` <!-- id: 119 -->
-    - [ ] Update `main.py` to use config from context (Failed prev attempt) <!-- id: 120 -->
-    - [ ] Update `llm_analyzer.py` to accept provider_id (Failed prev attempt) <!-- id: 122 -->
-    - [ ] Verify directory structure alignment <!-- id: 121 -->
+    - [x] Update `main.py` to use config from context <!-- id: 120 -->
+    - [x] Update `llm_analyzer.py` to accept provider_id <!-- id: 122 -->
+    - [x] Verify directory structure alignment <!-- id: 121 -->
 - [ ] Verification <!-- id: 12 -->
-    - [ ] Run verification script <!-- id: 116 -->
+    - [x] Debug Docker import issues <!-- id: 123 -->
+    - [ ] Run verification script in `astrbot` container <!-- id: 124 -->
