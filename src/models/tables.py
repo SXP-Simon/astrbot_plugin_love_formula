@@ -4,7 +4,7 @@ from sqlmodel import Field, SQLModel
 
 
 class LoveDailyRef(SQLModel, table=True):
-    """每日恋爱成分指标快照"""
+    """每日恋爱成分指标快照，存储每个用户在群组中的各项互动数据"""
 
     __tablename__ = "love_daily_ref"
     __table_args__ = {"extend_existing": True}
@@ -14,11 +14,11 @@ class LoveDailyRef(SQLModel, table=True):
     group_id: str = Field(index=True)
     user_id: str = Field(index=True)
 
-    # Text Metrics
+    # 文字指标
     msg_sent: int = Field(default=0)
     text_len_total: int = Field(default=0)
 
-    # Interaction Metrics
+    # 互动指标
     reply_sent: int = Field(default=0)
     reply_received: int = Field(default=0)
     poke_sent: int = Field(default=0)
@@ -26,17 +26,17 @@ class LoveDailyRef(SQLModel, table=True):
     reaction_sent: int = Field(default=0)
     reaction_received: int = Field(default=0)
 
-    # Negative Metrics
+    # 负面指标
     recall_count: int = Field(default=0)
 
-    # Meme/Nostalgia Metrics
+    # 多媒体/梗图指标
     image_sent: int = Field(default=0)
 
-    updated_at: float = Field(default=0.0)  # Timestamp
+    updated_at: float = Field(default=0.0)  # 更新时间戳
 
 
 class MessageOwnerIndex(SQLModel, table=True):
-    """消息归属索引，用于Reaction归因"""
+    """消息归属索引，用于将后续的 Reaction 归因到具体的发送者"""
 
     __tablename__ = "message_owner_index"
     __table_args__ = {"extend_existing": True}
@@ -44,4 +44,4 @@ class MessageOwnerIndex(SQLModel, table=True):
     message_id: str = Field(primary_key=True)
     user_id: str
     group_id: str
-    timestamp: float  # 用于清理过期数据
+    timestamp: float  # 时间戳

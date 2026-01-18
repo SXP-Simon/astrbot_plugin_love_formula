@@ -8,20 +8,22 @@ logger = LogManager.GetLogger("astrbot_plugin_love_formula.renderer")
 
 
 class LoveRenderer:
+    """恋爱分析渲染器，负责将数据转化为视觉图片"""
+
     def __init__(self, context: Context, theme_manager: ThemeManager):
         self.context = context
         self.theme_manager = theme_manager
-        # Initialize Jinja2 Env
+        # 初始化 Jinja2 环境
         self.env = Environment(loader=FileSystemLoader(theme_manager.themes_dir))
 
     async def render(self, data: dict, theme_name: str = "galgame") -> str:
         """
-        Render the analysis result to an image.
-        Returns: absolute path to the generated image file.
+        将分析结果渲染为图片。
+        返回：生成的图片文件的绝对路径。
         """
         logger.info(f"开始渲染图片，主题: {theme_name}")
 
-        # 1. Load Template
+        # 1. 加载模板
         template_name = f"{theme_name}/template.html"
         try:
             template = self.env.get_template(template_name)
@@ -29,9 +31,7 @@ class LoveRenderer:
             logger.error(f"模板加载失败: {e}")
             raise
 
-        # 2. Inject Data & KaTeX CDN (or local)
-        # We ensure KaTeX is enabled in the template
-
+        # 2. 渲染内容
         try:
             html_content = template.render(
                 data=data,
@@ -43,13 +43,9 @@ class LoveRenderer:
             logger.error(f"Jinja2 渲染失败: {e}")
             raise
 
-        # 3. Use AstrBot's HTML Renderer
-        # 使用 astrbot.core.html_renderer 全局实例
-
+        # 3. 使用 AstrBot 的 HTML 渲染引擎
         try:
             logger.debug("调用 AstrBot html_renderer...")
-            # 将生成的 HTML 作为模板字符串传递，数据为空（因为已经渲染过了）
-            # 注意：这要求 html_renderer 能够处理已经是 HTML 的内容
             path = await html_renderer.render_custom_template(
                 tmpl_str=html_content,
                 tmpl_data={},

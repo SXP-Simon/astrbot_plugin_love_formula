@@ -1,4 +1,6 @@
 class ArchetypeClassifier:
+    """人设分类器，根据得分将用户归类为特定的网络人设"""
+
     ARCHETYPES = {
         "THE_SIMP": "沸羊羊 (The Simp)",
         "THE_PLAYER": "海王 (The Player)",
@@ -10,11 +12,12 @@ class ArchetypeClassifier:
 
     @staticmethod
     def classify(scores: dict) -> tuple[str, str]:
+        """根据得分返回人设 Key 和名称"""
         s = scores["simp"]
         v = scores["vibe"]
         i = scores["ick"]
 
-        # Classification Logic
+        # 判定逻辑
         if i > 60 and v > 50:
             return "HIMBO", ArchetypeClassifier.ARCHETYPES["HIMBO"]
 

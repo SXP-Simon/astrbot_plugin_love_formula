@@ -9,12 +9,15 @@ from .database import DBManager
 
 
 class LoveRepo:
+    """数据仓库，封装所有的数据库交互逻辑"""
+
     def __init__(self, db_manager: DBManager):
         self.db = db_manager
 
     async def get_or_create_daily_ref(
         self, session: AsyncSession, group_id: str, user_id: str
     ) -> LoveDailyRef:
+        """获取或创建今日的数据记录"""
         today = date.today()
         stmt = select(LoveDailyRef).where(
             LoveDailyRef.date == today,
@@ -29,7 +32,7 @@ class LoveRepo:
                 date=today, group_id=group_id, user_id=user_id, updated_at=time.time()
             )
             session.add(record)
-            # Flush to get ID if needed immediately, though session commit will handle it
+            # Flush 以确保如果需要立即获取 ID，但在 commit 时也会处理
             await session.flush()
 
         return record
@@ -37,6 +40,7 @@ class LoveRepo:
     async def update_msg_stats(
         self, group_id: str, user_id: str, text_len: int, image_count: int = 0
     ):
+        """更新消息统计数据 (发送数、字数、图片数)"""
         async with self.db.get_session() as session:
             record = await self.get_or_create_daily_ref(session, group_id, user_id)
             record.msg_sent += 1
@@ -46,6 +50,7 @@ class LoveRepo:
             session.add(record)
 
     async def save_message_index(self, message_id: str, group_id: str, user_id: str):
+        """保存消息 ID 与发送者的映射，用于后续的异步交互归因 (如 Reaction)"""
         async with self.db.get_session() as session:
             idx = MessageOwnerIndex(
                 message_id=message_id,
@@ -72,6 +77,7 @@ class LoveRepo:
         reaction: int = 0,
         recall: int = 0,
     ):
+        """更新主动交互计数"""
         async with self.db.get_session() as session:
             record = await self.get_or_create_daily_ref(session, group_id, user_id)
             record.poke_sent += poke

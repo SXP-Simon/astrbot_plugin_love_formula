@@ -3,22 +3,25 @@ from ..models.tables import LoveDailyRef
 
 
 class LoveCalculator:
-    # Weights for Simp Score (Effort/Output)
+    """恋爱成分计算器，负责各项指标权重的定义和计算"""
+
+    # 舔狗值权重 (付出/产出)
     W_MSG_SENT = 1.0
     W_POKE_SENT = 2.0
-    W_AVG_LEN = 0.05  # Per character
+    W_AVG_LEN = 0.05  # 每个字符
 
-    # Weights for Vibe Score (Feedback/Input)
+    # 魅力值权重 (反馈/输入)
     W_REPLY_RECV = 3.0
     W_REACTION_RECV = 2.0
     W_POKE_RECV = 2.0
 
-    # Weights for Ick Score (Negative)
+    # 下头值权重 (负面行为)
     W_RECALL = 5.0
 
     @staticmethod
     def calculate_scores(data: LoveDailyRef) -> dict:
-        # 1. Simp Score Calculation (S)
+        """根据每日数据计算各项得分"""
+        # 1. 舔狗值计算 (S)
         avg_len = data.text_len_total / data.msg_sent if data.msg_sent > 0 else 0
         raw_simp = (
             data.msg_sent * LoveCalculator.W_MSG_SENT
@@ -26,19 +29,19 @@ class LoveCalculator:
             + avg_len * LoveCalculator.W_AVG_LEN
         )
 
-        # 2. Vibe Score Calculation (V)
+        # 2. 魅力值计算 (V)
         raw_vibe = (
             data.reply_received * LoveCalculator.W_REPLY_RECV
             + data.reaction_received * LoveCalculator.W_REACTION_RECV
             + data.poke_received * LoveCalculator.W_POKE_RECV
         )
 
-        # 3. Ick Score Calculation (I)
+        # 3. 下头值计算 (I)
         raw_ick = data.recall_count * LoveCalculator.W_RECALL
 
-        # 4. Normalization (using sigmoid to map to 0-100)
-        # Using a relaxed sigmoid: 100 * (2 / (1 + e^(-0.1 * x)) - 1)
-        # This maps 0 -> 0, 10 -> 46, 20 -> 76, 50 -> 98
+        # 4. 归一化 (使用 sigmoid 函数映射到 0-100)
+        # 使用平缓的 sigmoid: 100 * (2 / (1 + e^(-0.05 * x)) - 1)
+        # 映射关系: 0 -> 0, 10 -> 24, 20 -> 46, 50 -> 84, 100 -> 98
 
         def normalize(x):
             if x <= 0:
