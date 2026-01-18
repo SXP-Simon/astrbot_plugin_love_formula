@@ -20,4 +20,6 @@
     - [x] Fix plugin_data_dir access <!-- id: 134 -->
     - [x] Restart container and verify logs <!-- id: 127 -->
     - [x] Generate visual test output <!-- id: 135 -->
-- [ ] Final Review <!-- id: 129 -->
+- [x] Final Review <!-- id: 129 -->
+    - [x] Cleanup unused `data` directory <!-- id: 136 -->
+    - [x] Reset/Generate `love_formula.db` <!-- id: 137 -->
