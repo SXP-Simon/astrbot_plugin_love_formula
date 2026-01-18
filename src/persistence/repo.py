@@ -1,7 +1,8 @@
 from datetime import date
 import time
-from typing import Optional, List
-from sqlalchemy import select, update
+from typing import Optional
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.tables import LoveDailyRef, MessageOwnerIndex
@@ -103,9 +104,18 @@ class LoveRepo:
             record.updated_at = time.time()
             session.add(record)
 
-    async def get_today_data(
-        self, group_id: str, user_id: str
-    ) -> Optional[LoveDailyRef]:
+    async def update_v2_stats(
+        self, group_id: str, user_id: str, topic_inc: int = 0, repeat_inc: int = 0
+    ):
+        """更新 V2 引擎特有指标"""
+        async with self.db.get_session() as session:
+            record = await self.get_or_create_daily_ref(session, group_id, user_id)
+            record.topic_count += topic_inc
+            record.repeat_count += repeat_inc
+            record.updated_at = time.time()
+            session.add(record)
+
+    async def get_today_data(self, group_id: str, user_id: str) -> LoveDailyRef | None:
         async with self.db.get_session() as session:
             today = date.today()
             stmt = select(LoveDailyRef).where(

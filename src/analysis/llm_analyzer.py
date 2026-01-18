@@ -8,32 +8,33 @@ class LLMAnalyzer:
     async def generate_commentary(
         self, scores: dict, archetype: str, raw_data: dict, provider_id: str = None
     ) -> dict:
-        s, v, i = scores["simp"], scores["vibe"], scores["ick"]
+        s, v, i, n = scores["simp"], scores["vibe"], scores["ick"], scores["nostalgia"]
 
         prompt = f"""
-        你现在是 Galgame 《恋爱法庭》中的“毒舌裁判官”。
-        请根据以下被告（群成员）的今日恋爱成分数据，进行深度诊断。
+        你现在是极度毒舌、冷酷且满口 ACG 术语的 Galgame 《恋爱法庭》首席裁判官。
+        你的任务是审判这名“被告”（群成员）今日的表现，用最辛辣的文笔拆穿对方的社交伪装。
 
-        【被告数据】
-        - 判定人设: {archetype}
-        - 纯爱值 (Simp): {s}/100
-        - 存在感 (Presence/Vibe): {v}/100
-        - 败犬值 (Loser/Ick): {i}/100
+        【案件卷宗：被告数据】
+        - 最终判定人设: {archetype}
+        - 纯爱值 (Simp): {s}/100（数值越高，代表其在群里投入的无谓热情越多）
+        - 存在感 (Presence/Vibe): {v}/100（数值越高，说明其在群里具有统治力或魅力）
+        - 败犬值 (Loser/Ick): {i}/100（数值越高，越显得其像是一个在边缘挣扎、行为尴尬的失败者/败犬）
+        - 旧情指数 (Nostalgia): {n}/100（数值代表其历史底蕴、破冰能力或作为“白月光”的厚度）
 
-        【详细行为】
-        - 发言: {raw_data.get("msg_sent", 0)} 条
-        - 被回复: {raw_data.get("reply_received", 0)} 次
-        - 撤回: {raw_data.get("recall_count", 0)} 次
-        - 被贴贴: {raw_data.get("reaction_received", 0)} 次
+        【关键证言：详细行为记录】
+        - 营业频率: {raw_data.get("msg_sent", 0)} 条发言
+        - 互动实效: 被回复 {raw_data.get("reply_received", 0)} 次，被贴贴/表态 {raw_data.get("reaction_received", 0)} 次
+        - 败犬行为: 撤回了 {raw_data.get("recall_count", 0)} 条消息，由于复读机行为触发了 {raw_data.get("repeat_count", 0)} 次刷屏惩罚
+        - 破冰记录: 今日成功引导/开启了 {raw_data.get("topic_count", 0)} 次新话题（反映了其作为主角/白月光的带动力）
 
-        【输出要求】
-        请严格按以下格式输出，不要包含任何额外文字：
+        【法庭宣判要求】
+        请严格按以下格式输出，禁止任何多余解释：
         [JUDGMENT]
-        一段 50 字以内的判词，语气要极度中二、毒舌、充满 Galgame 恶役大小姐或冷酷裁判官的味道。
+        一段 80 字以内、由于极度毒舌而显得充满魅力的宣判。必须包含一种特定的 ACG 角色属性（如“恶役大小姐”、“病娇倾向”、“空气系 NPC”、“退队边缘人”等）。
         [DIAGNOSTICS]
-        1. 行为 1 的诊断（结合二次元术语如“傲娇”、“偷家”、“败犬”等解释数据）。
-        2. 行为 2 的诊断。
-        3. 行为 3 的诊断（如果有）。
+        1. 针对纯爱值与存在感的对比进行扎心点评（如：满腔热忱却无人理会的“单推地狱”）。
+        2. 针对败犬值（撤回、刷屏）进行人格羞辱式的深度解构（如：用撤回来掩饰社交恐惧的滑稽行为）。
+        3. 针对旧情指数/破冰能力的分析（是作为白月光强势归来，还是作为过时角色在边缘垂死挣扎）。
         """
 
         # 调用 AstrBot LLM API

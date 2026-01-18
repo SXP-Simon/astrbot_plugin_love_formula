@@ -52,7 +52,7 @@ class LoveRenderer:
                 return_url=False,
                 options={
                     "type": "jpeg",
-                    "clip": {"x": 0, "y": 0, "width": 540, "height": 1200},
+                    "full_page": True,
                 },
             )
             logger.info(f"图片生成完成: {path}")

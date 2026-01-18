@@ -1,3 +1,4 @@
+import time
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent
 from astrbot.core.message.components import Reply
@@ -7,6 +8,14 @@ from ..persistence.repo import LoveRepo
 
 class MessageHandler:
     """消息处理器，负责监听和解析用户发送的聊天消息"""
+
+    # V2 引擎共享状态
+    # {group_id: last_timestamp}
+    _group_last_msg_time = {}
+    # {group_id: {user_id: last_text}}
+    _user_last_msg_text = {}
+
+    TOPIC_THRESHOLD = 900  # 15 分钟沉默视为新话题 (破冰)
 
     def __init__(self, repo: LoveRepo):
         self.repo = repo
@@ -30,9 +39,45 @@ class MessageHandler:
         # 1. 保存消息索引 (用于 Reaction 归因)
         await self.repo.save_message_index(message_id, group_id, user_id)
 
-        # 2. 内容分析
+        # 2. V2 引擎指标分析
         text = event.message_str
         text_len = len(text)
+        current_time = time.time()
+
+        topic_inc = 0
+        repeat_inc = 0
+
+        # A. 破冰/开场 (Topic) 判定
+        last_group_time = MessageHandler._group_last_msg_time.get(group_id, 0)
+        if (
+            last_group_time > 0
+            and (current_time - last_group_time) > MessageHandler.TOPIC_THRESHOLD
+        ):
+            topic_inc = 1
+            logger.debug(
+                f"[LoveFormula] 检测到破冰行为! 沉默时长: {current_time - last_group_time:.1f}s"
+            )
+
+        # 更新群组最后活跃时间
+        MessageHandler._group_last_msg_time[group_id] = current_time
+
+        # B. 重复/刷屏 (Repeat) 判定
+        user_last_texts = MessageHandler._user_last_msg_text.get(group_id, {})
+        last_text = user_last_texts.get(user_id, "")
+        if text and text == last_text:
+            repeat_inc = 1
+            logger.debug(f"[LoveFormula] 检测到重复发言: {text}")
+
+        # 更新用户最后发言文本
+        if group_id not in MessageHandler._user_last_msg_text:
+            MessageHandler._user_last_msg_text[group_id] = {}
+        MessageHandler._user_last_msg_text[group_id][user_id] = text
+
+        # 3. 更新 V2 统计 (如果命中)
+        if topic_inc > 0 or repeat_inc > 0:
+            await self.repo.update_v2_stats(group_id, user_id, topic_inc, repeat_inc)
+
+        # 4. 原有内容分析
 
         # 检查图片发送情况
         image_count = 0
@@ -101,7 +146,7 @@ class MessageHandler:
         if reply_target_user_id:
             logger.debug(f"成功识别回复目标: {reply_target_user_id}")
 
-        # 3. 更新每日统计
+        # 5. 更新每日统计
         await self.repo.update_msg_stats(
             group_id=group_id,
             user_id=user_id,
@@ -109,7 +154,7 @@ class MessageHandler:
             image_count=image_count,
         )
 
-        # 4. 更新回复统计
+        # 6. 更新回复统计
         if reply_target_user_id:
             # 发送者发送了回复
             await self.repo.update_interaction_sent(

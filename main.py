@@ -137,11 +137,12 @@ class LoveFormulaPlugin(Star):
             "user_id": user_id,
             "avatar_url": avatar_url,
             "title": archetype_name,
-            "score": int((scores["simp"] + scores["vibe"] + scores["ick"]) / 3),
+            "score": scores.get("score", 0),
             "metrics": {
                 "纯爱值": f"{scores['simp']}%",
                 "存在感": f"{scores['vibe']}%",
                 "败犬值": f"{scores['ick']}%",
+                "旧情指数": f"{scores['nostalgia']}%",
                 "营业频率": f"{raw_data_dict.get('msg_sent', 0)}条/日",
                 "小作文功率": f"{int(raw_data_dict.get('text_len_total', 0) / raw_data_dict.get('msg_sent', 1)) if raw_data_dict.get('msg_sent', 0) > 0 else 0}字/条",
             },
@@ -177,20 +178,14 @@ class LoveFormulaPlugin(Star):
         # S = (msg * 1.0 + poke * 2.0 + avg_len * 0.05)
         # V = (reply * 3.0 + reaction * 2.0 + poke_recv * 2.0)
         # I = (recall * 5.0)
-        s_raw = scores["raw"]["simp"]
-        v_raw = scores["raw"]["vibe"]
-        i_raw = scores["raw"]["ick"]
 
-        # 构造一个展示核心逻辑的算式
-        latex = r"L = \sigma("
-        latex += rf"{s_raw:.1f} \cdot S_{{imp}} + "
-        latex += rf"{v_raw:.1f} \cdot V_{{ibe}} - "
-        latex += rf"{i_raw:.1f} \cdot B_{{xing}}"
-        latex += r") \approx "  # Wait, render_data is local to handle_message
-
-        # Re-calculating score for the string is redundant, let's just make it a clean formula
-        score = int((scores["simp"] + scores["vibe"] + scores["ick"]) / 3)
-        return rf"f(S, V, B) = \text{{norm}}({s_raw:.1f}, {v_raw:.1f}, {i_raw:.1f}) \Rightarrow {score}\%"
+    def _construct_latex_equation(self, scores: dict, raw_data: dict) -> str:
+        """根据公式生成 LaTeX 字符串"""
+        # J_{love} = \int_{today} e^{-rt} \cdot [Vibe + \beta Nostalgia - \lambda Ick - c \cdot Simp] \, dt
+        return (
+            r"J_{love} = \int_{today} e^{-rt} \cdot [Vibe + \beta Nostalgia - \lambda Ick - c \cdot Simp] \, dt \Rightarrow "
+            + f"{scores['score']}\\%"
+        )
 
     def _generate_diagnostic_insights(
         self, scores: dict, raw_data: dict, archetype_key: str
@@ -198,44 +193,53 @@ class LoveFormulaPlugin(Star):
         """生成叙事性的行为诊断报告"""
         insights = []
 
-        # 1. 舔狗值诊断 (S)
+        # 1. 纯爱值诊断 (S)
         msg_sent = raw_data.get("msg_sent", 0)
         poke_sent = raw_data.get("poke_sent", 0)
         if scores["simp"] > 60:
             insights.append(
-                f"主动付出判定: 你今日发送了 {msg_sent} 条消息并主动‘戳了戳’他人 {poke_sent} 次。这种高频的单向互动大幅推高了你的‘舔狗值’，反映出你强烈的社交欲望。"
+                f"【纯爱处刑】本席在群聊底层逻辑中发现了你疯狂倾倒的 {msg_sent} 条情感垃圾（发言），甚至还厚着脸皮‘戳了戳’他人 {poke_sent} 次。这种自我感动式的卑微热情，是纯度 100% 的败犬预备役。"
             )
         else:
             insights.append(
-                "社交投入判定: 你今日的发言频率与互动强度适中，处于健康的社交平衡区间，没有表现出过度的低姿态倾向。"
+                "【投入判定】你今日的表现尚算理智，没在群里表现出那种令人掩面的‘舔狗’狂热，社交尊严保持得非常得体。"
             )
 
-        # 2. 魅力值诊断 (V)
+        # 2. 存在感诊断 (V)
         reply_recv = raw_data.get("reply_received", 0)
         reaction_recv = raw_data.get("reaction_received", 0)
         if scores["vibe"] > 60:
             insights.append(
-                f"高位存在感判定: 你的存在感已突破天际，引发了 {reply_recv} 次回复和 {reaction_recv} 次表情回应。整场社交节奏都在你的支配之下。"
+                f"【公敌警告】被告今日的存在感已然失控。引发了 {reply_recv} 次回复和 {reaction_recv} 次表情回应，这股‘现充’的统治力已经严重干扰了本庭的秩序。"
             )
         elif scores["vibe"] < 20:
             insights.append(
-                f"存在感判定: 群友对你的回应较少（仅 {reply_recv} 次回复）。建议通过发送有趣的表情包或参与热门话题来提升你的存在感。"
+                f"【空气系处分】本席几乎无法在数据流中捕捉到你的波长。仅仅被回复了 {reply_recv} 次，这种透明度堪比 Galgame 里的背景板，建议通过梗图或‘白月光’式发言换取一点施舍。"
             )
         else:
             insights.append(
-                "反馈能量判定: 你的发言获得了一定程度的反馈，社交磁场保持稳定。"
+                "【社交观测】你的发言虽然平稳，但缺乏致命的吸引力。群友们对你的回应保持在一个‘礼貌但不热烈’的安全距离。"
             )
 
-        # 3. 败兴值诊断 (I)
+        # 3. 败犬与旧情诊断 (I / N)
         recall = raw_data.get("recall_count", 0)
-        if recall > 0:
+        repeat = raw_data.get("repeat_count", 0)
+        topic = raw_data.get("topic_count", 0)
+        if recall > 0 or repeat > 0:
+            msg = f"【败犬修正】本席捕捉到你在社交战场上的拙劣逃避——撤回了 {recall} 条信息"
+            if repeat > 0:
+                msg += f"并伴随 {repeat} 次复读机式的刷屏自毁"
+            msg += "。每一步都在无情推高你的败犬值，那是属于失败者的滑稽谢幕。"
+            insights.append(msg)
+
+        if topic > 0:
             insights.append(
-                f"败犬气息判定: 你今日撤回了 {recall} 条消息。这种‘撤旗’行为在社交模型中被视为极度的不自信，每撤回一条都会垂直增加你的‘败犬值’。"
+                f"【角色复辟】你在今日开启了 {topic} 次全新话题，通过‘破冰’行为强行夺回了焦点。这种‘白月光’般的领导力，正在修复你逐渐透明的身影。"
             )
 
         # 4. 人设由来
         insights.append(
-            f"人设达成逻辑: 基于上述数据，{self._get_archetype_reason(archetype_key, scores)}"
+            f"【最终判词】综上所述，{self._get_archetype_reason(archetype_key, scores)}"
         )
 
         return insights
@@ -243,11 +247,11 @@ class LoveFormulaPlugin(Star):
     def _get_archetype_reason(self, key: str, scores: dict) -> str:
         """根据 Key 返回判定理由"""
         reasons = {
-            "THE_SIMP": f"由于你的投入({scores['simp']}%)远高于群友对你的反馈({scores['vibe']}%)，满足了‘沸羊羊’判定门槛。",
-            "THE_PLAYER": f"因为你只需较低的投入就能换取极高的群友反馈({scores['vibe']}%)，表现出典型的‘海王’特征。",
-            "HIMBO": f"虽然你的魅力值({scores['vibe']}%)很高，但撤回行为带来的败兴值({scores['ick']}%)让你的表现显得矛盾而迷人。",
-            "IDOL": f"你几乎不主动付出({scores['simp']}%)却依然保有一定的群友关注，这种高冷姿态符合‘男神/女神’的设定。",
-            "NPC": "你今日的各项交互数据均处于极低水平，系统判定你正在群内‘潜水’观望。",
-            "NORMAL": "各项指标分布均匀，没有极端异常的数据表现，是一个平稳社交的普通群友。",
+            "THE_SIMP": f"由于你的投入({scores['simp']}%)远高于群友对你的反馈({scores['vibe']}%)，本庭认定你是那种只会一厢情愿透支热情的‘纯爱劳模’。",
+            "THE_PLAYER": f"因为你只需较低的投入就能换取极高的群友反馈({scores['vibe']}%)，你是典型的社交霸凌者，也就是所谓的‘现充现行犯’。",
+            "HIMBO": f"虽然你的存在感({scores['vibe']}%)很高，但撤回或刷屏带来的败犬臭味({scores['ick']}%)让你的光芒显得滑稽而苍白。",
+            "IDOL": f"你几乎不主动营业({scores['simp']}%)却依然保有极高的关注度，这种高冷且傲慢的姿态，确实符合‘群内偶像’的恶劣本质。",
+            "NPC": "你各项维度均已归零，系统判定你只是本群的一块‘空气背景板’，毫无审判交互的必要。",
+            "NORMAL": "各项指标分布极其平庸，没有能够引起本庭注意的闪光点或污点，老老实实做个普通路人吧。",
         }
         return reasons.get(key, "数据分布符合该人设的特征判定区间。")

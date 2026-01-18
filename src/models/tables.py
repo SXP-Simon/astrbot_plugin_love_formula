@@ -9,7 +9,7 @@ class LoveDailyRef(SQLModel, table=True):
     __tablename__ = "love_daily_ref"
     __table_args__ = {"extend_existing": True}
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     date: DateType = Field(index=True)
     group_id: str = Field(index=True)
     user_id: str = Field(index=True)
@@ -28,9 +28,11 @@ class LoveDailyRef(SQLModel, table=True):
 
     # 负面指标
     recall_count: int = Field(default=0)
+    repeat_count: int = Field(default=0)  # 重复/刷屏次数
 
     # 多媒体/梗图指标
     image_sent: int = Field(default=0)
+    topic_count: int = Field(default=0)  # 破冰/开场次数
 
     updated_at: float = Field(default=0.0)  # 更新时间戳
 
