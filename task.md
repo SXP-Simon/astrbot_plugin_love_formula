@@ -10,6 +10,14 @@
     - [x] Update `main.py` to use config from context <!-- id: 120 -->
     - [x] Update `llm_analyzer.py` to accept provider_id <!-- id: 122 -->
     - [x] Verify directory structure alignment <!-- id: 121 -->
-- [ ] Verification <!-- id: 12 -->
-    - [x] Debug Docker import issues <!-- id: 123 -->
-    - [ ] Run verification script in `astrbot` container <!-- id: 124 -->
+- [x] Verification <!-- id: 12 -->
+    - [x] Fix Pydantic field collision <!-- id: 125 -->
+    - [x] Fix main.py imports <!-- id: 126 -->
+    - [x] Fix message_handler.py imports <!-- id: 130 -->
+    - [x] Implement NoticeFilter <!-- id: 131 -->
+    - [x] Fix filter class handling <!-- id: 132 -->
+    - [x] Refactor logging to use AstrBot built-in logger <!-- id: 133 -->
+    - [x] Fix plugin_data_dir access <!-- id: 134 -->
+    - [x] Restart container and verify logs <!-- id: 127 -->
+    - [x] Generate visual test output <!-- id: 135 -->
+- [ ] Final Review <!-- id: 129 -->

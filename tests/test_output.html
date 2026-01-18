@@ -41,7 +41,7 @@
         }
 
         .header {
-            background-image: url('{{ asset_dir }}/header_bg.png');
+            background-image: url('file:///AstrBot/data/plugins/astrbot_plugin_love_formula/assets/themes/galgame/assets/header_bg.png');
             /* Fallback or actual bg */
             background-size: cover;
             background-position: center;
@@ -195,11 +195,11 @@
     <div class="card">
         <div class="header">
             <div class="user-info">
-                <img src="{{ data.avatar_url }}" alt="Avatar" class="avatar"
+                <img src="https://api.multiavatar.com/TestUser.png" alt="Avatar" class="avatar"
                     onerror="this.src='https://api.multiavatar.com/default.png'">
                 <div class="title-group">
-                    <div class="user-name">{{ data.user_name }}</div>
-                    <div class="user-title">{{ data.title }}</div>
+                    <div class="user-name">TestUser</div>
+                    <div class="user-title">Cyber-Simp</div>
                 </div>
             </div>
         </div>
@@ -207,24 +207,44 @@
         <div class="content">
             <div class="score-section">
                 <div class="score-label">今日恋爱能量值</div>
-                <div class="score-value">{{ data.score }}%</div>
+                <div class="score-value">88%</div>
             </div>
 
             <div class="radar-chart">
-                {% for key, val in data.metrics.items() %}
+                
                 <div class="metric-item">
-                    <span class="metric-name">{{ key }}</span>
-                    <span class="metric-val">{{ val }}</span>
+                    <span class="metric-name">interaction</span>
+                    <span class="metric-val">50</span>
                 </div>
-                {% endfor %}
+                
+                <div class="metric-item">
+                    <span class="metric-name">active</span>
+                    <span class="metric-val">30</span>
+                </div>
+                
+                <div class="metric-item">
+                    <span class="metric-name">sweet</span>
+                    <span class="metric-val">20</span>
+                </div>
+                
+                <div class="metric-item">
+                    <span class="metric-name">resilience</span>
+                    <span class="metric-val">80</span>
+                </div>
+                
+                <div class="metric-item">
+                    <span class="metric-name">random</span>
+                    <span class="metric-val">10</span>
+                </div>
+                
             </div>
 
             <div class="comment-box">
-                {{ data.comment }}
+                This is a generated test comment to verify the layout and style of the Love Formula card.
             </div>
 
             <div class="footer">
-                Generate by AstrBot Plugin Love Formula • {{ data.generated_time }}
+                Generate by AstrBot Plugin Love Formula • 2026-01-18 16:00:00
             </div>
         </div>
     </div>
