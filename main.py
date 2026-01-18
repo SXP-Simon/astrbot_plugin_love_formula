@@ -111,8 +111,11 @@ class LoveFormulaPlugin(Star):
 
         min_msg = self.config.get("min_msg_threshold", 3)
         if not daily_data or daily_data.msg_sent < min_msg:
+            prefix = (
+                "你" if user_id == event.message_obj.sender.user_id else f"{nickname}"
+            )
             yield event.plain_result(
-                f"你今天太沉默了（发言少于{min_msg}条），甚至无法测算出恋爱成分。"
+                f"{prefix}今天太沉默了（发言少于{min_msg}条），甚至无法测算出恋爱成分。"
             )
             return
 
@@ -219,11 +222,11 @@ class LoveFormulaPlugin(Star):
         poke_sent = raw_data.get("poke_sent", 0)
         if scores["simp"] > 60:
             insights.append(
-                f"【纯爱处刑】本席在群聊底层逻辑中发现了你疯狂倾倒的 {msg_sent} 条情感垃圾（发言），甚至还厚着脸皮‘戳了戳’他人 {poke_sent} 次。这种自我感动式的卑微热情，是纯度 100% 的败犬预备役。"
+                f"【纯爱处刑】本席在群聊底层逻辑中发现了该成员疯狂倾倒的 {msg_sent} 条情感垃圾，甚至还厚着脸皮‘戳了戳’他人 {poke_sent} 次。这种自我感动式的卑微热情，是纯度 100% 的败犬预备役。"
             )
         else:
             insights.append(
-                "【投入判定】你今日的表现尚算理智，没在群里表现出那种令人掩面的‘舔狗’狂热，社交尊严保持得非常得体。"
+                "【投入判定】该成员今日的表现尚算理智，没在群里表现出那种令人掩面的‘舔狗’狂热，社交尊严保持得非常得体。"
             )
 
         # 2. 存在感诊断 (V)
@@ -235,11 +238,11 @@ class LoveFormulaPlugin(Star):
             )
         elif scores["vibe"] < 20:
             insights.append(
-                f"【空气系处分】本席几乎无法在数据流中捕捉到你的波长。仅仅被回复了 {reply_recv} 次，这种透明度堪比 Galgame 里的背景板，建议通过梗图或‘白月光’式发言换取一点施舍。"
+                f"【空气系处分】本席几乎无法在数据流中捕捉该受众的波长。仅仅被回复了 {reply_recv} 次，这种透明度堪比 Galgame 里的背景板，建议通过梗图或‘白月光’式发言换取一点施舍。"
             )
         else:
             insights.append(
-                "【社交观测】你的发言虽然平稳，但缺乏致命的吸引力。群友们对你的回应保持在一个‘礼貌但不热烈’的安全距离。"
+                "【社交观测】其发言虽然平稳，但缺乏致命的吸引力。群友们对其回应保持在一个‘礼貌但不热烈’的安全距离。"
             )
 
         # 3. 败犬与旧情诊断 (I / N)
@@ -247,15 +250,15 @@ class LoveFormulaPlugin(Star):
         repeat = raw_data.get("repeat_count", 0)
         topic = raw_data.get("topic_count", 0)
         if recall > 0 or repeat > 0:
-            msg = f"【败犬修正】本席捕捉到你在社交战场上的拙劣逃避——撤回了 {recall} 条信息"
+            msg = f"【败犬修正】本席捕捉到该成员在社交战场上的拙劣逃避——撤回了 {recall} 条信息"
             if repeat > 0:
                 msg += f"并伴随 {repeat} 次复读机式的刷屏自毁"
-            msg += "。每一步都在无情推高你的败犬值，那是属于失败者的滑稽谢幕。"
+            msg += "。每一步都在无情推高其败犬值，那是属于失败者的滑稽谢幕。"
             insights.append(msg)
 
         if topic > 0:
             insights.append(
-                f"【角色复辟】你在今日开启了 {topic} 次全新话题，通过‘破冰’行为强行夺回了焦点。这种‘白月光’般的领导力，正在修复你逐渐透明的身影。"
+                f"【角色复辟】对方在今日开启了 {topic} 次全新话题，通过‘破冰’行为强行夺回了焦点。这种‘白月光’般的领导力，正在修复其逐渐透明的身影。"
             )
 
         # 4. 人设由来
