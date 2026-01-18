@@ -6,6 +6,10 @@ from astrbot.api.event.filter import CustomFilter, EventMessageType
 from astrbot.core.config import AstrBotConfig
 from astrbot.core.star import Star
 from astrbot.core.star.context import Context
+from astrbot.core.message.components import (
+    At,
+    Image,
+)  # Moved from within cmd_love_profile
 
 from .src.analysis.calculator import LoveCalculator
 from .src.analysis.classifier import ArchetypeClassifier
@@ -99,8 +103,6 @@ class LoveFormulaPlugin(Star):
         group_id = event.message_obj.group_id
         user_id = event.message_obj.sender.user_id
         nickname = event.message_obj.sender.nickname
-
-        from astrbot.core.message.components import At
 
         # 0. 检查是否为指定分析（被 at 的人）
         targeted_user_id = None
@@ -204,8 +206,6 @@ class LoveFormulaPlugin(Star):
             image_path = await self.renderer.render(render_data, theme_name=theme)
             logger.info(f"图片渲染成功: {image_path}")
 
-            from astrbot.core.message.components import Image
-
             try:
                 # 1. 优先尝试本地路径直接发送 (性能更好，减少内存占用)
                 yield event.chain_result([Image.fromFileSystem(image_path)])
@@ -216,8 +216,6 @@ class LoveFormulaPlugin(Star):
 
                 with open(image_path, "rb") as f:
                     b64_str = base64.b64encode(f.read()).decode()
-
-                from astrbot.core.message.components import Image
 
                 yield event.chain_result([Image.fromBase64(b64_str)])
         except Exception as e:
