@@ -33,7 +33,9 @@ class LLMAnalyzer:
         4. 字数控制在 50 字左右。
         """
 
-        # Call AstrBot LLM API
-        # Using tool_loop_agent=False to just get text generation
-        response = await self.context.llm_generate(prompt, chat_provider_id=provider_id)
+        # 调用 AstrBot LLM API
+        # 使用 tool_loop_agent=False 仅获取文本生成结果
+        response = await self.context.llm_generate(
+            prompt=prompt, chat_provider_id=provider_id
+        )
         return response.completion_text
