@@ -33,6 +33,20 @@ class MessageHandler:
             ):  # Object access
                 image_count += 1
 
+        # Check for replies
+        reply_target_user_id = None
+        for component in event.message_obj.message:
+            # Check for Reply component (object style)
+            if hasattr(component, "type") and str(component.type).lower() == "reply":
+                # Reply component found, get sender_id of the original message
+                if hasattr(component, "sender_id"):
+                    reply_target_user_id = str(component.sender_id)
+                break
+            # Check for Reply component (dict style)
+            if isinstance(component, dict) and component.get("type") == "reply":
+                reply_target_user_id = str(component.get("sender_id", ""))
+                break
+
         # 3. Update Daily Stats
         await self.repo.update_msg_stats(
             group_id=group_id,
@@ -41,4 +55,18 @@ class MessageHandler:
             image_count=image_count,
         )
 
-        # TODO: Detect replies (Need to parse [CQ:reply] or Reply object)
+        # 4. Update Reply Stats
+        if reply_target_user_id:
+            # Sender replied to someone
+            await self.repo.update_interaction_sent(
+                group_id=group_id,
+                user_id=user_id,
+                reply=1,
+            )
+            # Target user received a reply (if not self-reply)
+            if reply_target_user_id != str(user_id):
+                await self.repo.update_interaction_received(
+                    group_id=group_id,
+                    user_id=reply_target_user_id,
+                    reply=1,
+                )
