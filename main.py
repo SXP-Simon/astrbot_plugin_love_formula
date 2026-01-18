@@ -78,6 +78,26 @@ class LoveFormulaPlugin(Star):
         """生成每日恋爱成分分析报告"""
         group_id = event.message_obj.group_id
         user_id = event.message_obj.sender.user_id
+        nickname = event.message_obj.sender.nickname
+
+        from astrbot.core.message.components import At
+
+        # 0. 检查是否为指定分析（被 at 的人）
+        targeted_user_id = None
+        targeted_nickname = None
+
+        for component in event.message_obj.message:
+            if isinstance(component, At):
+                targeted_user_id = str(component.qq)
+                # 尝试获取 被 at 人的昵称，如果获取不到则使用默认
+                targeted_nickname = (
+                    getattr(component, "display", None) or f"用户{targeted_user_id}"
+                )
+                break
+
+        if targeted_user_id:
+            user_id = targeted_user_id
+            nickname = targeted_nickname
 
         if not group_id:
             yield event.plain_result("请在群聊中使用此指令。")
@@ -129,8 +149,7 @@ class LoveFormulaPlugin(Star):
 
         # 6. 构造渲染数据
         # Template expects: avatar_url, user_name, title, score, metrics, logic_insights, comment, generated_time
-        sender = event.message_obj.sender
-        user_name = sender.nickname if sender else f"用户{user_id}"
+        user_name = nickname if nickname else f"用户{user_id}"
         avatar_url = f"https://q1.qlogo.cn/g?b=qq&nk={user_id}&s=640"
         from datetime import datetime
 
