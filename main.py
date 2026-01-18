@@ -114,18 +114,43 @@ class LoveFormulaPlugin(Star):
             commentary = "LLM点评已关闭。"
 
         # 5. 渲染图片
+        logger.debug(f"准备渲染图片，Archetype: {archetype_name}, Scores: {scores}")
 
         theme = self.config.get("theme", "galgame")
+
+        # 构造符合模板要求的数据结构
+        # Template expects: avatar_url, user_name, title, score, metrics, comment, generated_time
+        sender = event.message_obj.sender
+        user_name = sender.nickname if sender else f"用户{user_id}"
+        # 尝试构建头像 URL (OneBot V11 风格)
+        avatar_url = f"https://q1.qlogo.cn/g?b=qq&nk={user_id}&s=640"
+
+        from datetime import datetime
+
         render_data = {
-            "scores": scores,
-            "archetype": archetype_name,
-            "commentary": commentary,
+            "user_name": user_name,
             "user_id": user_id,
-            "group_id": group_id,
+            "avatar_url": avatar_url,
+            "title": archetype_name,  # 使用人设作为 title
+            "score": int(
+                (scores["simp"] + scores["vibe"] + scores["ick"]) / 3
+            ),  # 计算总分
+            "metrics": {
+                "舔狗值": scores["simp"],
+                "魅力值": scores["vibe"],
+                "下头值": scores["ick"],
+                "纯爱度": scores.get("pure_love", 0),  # 假设 calculator 返回了这些
+                "发言数": raw_data_dict.get("msg_sent", 0),
+            },
+            "comment": commentary,
+            "generated_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
+
+        logger.debug(f"Render Data: {render_data}")
 
         try:
             image_path = await self.renderer.render(render_data, theme_name=theme)
+            logger.info(f"图片渲染成功: {image_path}")
             yield event.image_result(image_path)
         except Exception as e:
             logger.error(f"Render failed: {e}", exc_info=True)
