@@ -34,14 +34,15 @@ class LoveFormulaPlugin(Star):
         super().__init__(context)
         self.config = config
 
-        # 1. Init Persistence
+        # 1. 初始化持久层
         db_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "love_formula.db"
         )
         self.db_mgr = DBManager(db_path)
         self.repo = LoveRepo(self.db_mgr)
 
-        # 2. Init Handlers & Logic
+        # 2. 初始化处理器和逻辑
+
         self.msg_handler = MessageHandler(self.repo)
         self.notice_handler = NoticeHandler(self.repo)
         self.theme_mgr = ThemeManager(os.path.dirname(os.path.abspath(__file__)))
@@ -49,28 +50,28 @@ class LoveFormulaPlugin(Star):
         self.llm = LLMAnalyzer(context)
 
     async def init(self):
-        """Async initialization called by AstrBot"""
+        """AstrBot 调用的异步初始化方法"""
         await self.db_mgr.init_db()
         logger.info("LoveFormula DB initialized.")
 
     @filter.event_message_type(EventMessageType.GROUP_MESSAGE)
     async def on_group_message(self, event: AstrMessageEvent):
-        """Handle group messages"""
+        """处理群消息监听"""
         await self.msg_handler.handle_message(event)
 
     @filter.custom_filter(NoticeFilter)
     async def on_notice(self, event: AstrMessageEvent):
         """
-        Handle Notice events (OneBot V11).
-        Note: logic depends on how AstrBot wraps notice events.
-        Assuming event.raw_data contains the OneBot payload.
+        处理 Notice 事件 (OneBot V11)。
+        注意：逻辑取决于 AstrBot 如何封装 notice 事件。
+        假设 event.raw_data 包含 OneBot 负载。
         """
         if hasattr(event, "message_obj") and event.message_obj.raw_message:
             await self.notice_handler.handle_notice(event.message_obj.raw_message)
 
     @filter.command("今日人设")
     async def cmd_love_profile(self, event: AstrMessageEvent):
-        """Generate daily love analysis profile"""
+        """生成每日恋爱成分分析报告"""
         group_id = event.message_obj.group_id
         user_id = event.message_obj.sender.user_id
 
@@ -78,10 +79,12 @@ class LoveFormulaPlugin(Star):
             yield event.plain_result("请在群聊中使用此指令。")
             return
 
-        # 1. Fetch Data
+        # 1. 获取数据
+
         daily_data = await self.repo.get_today_data(group_id, user_id)
 
-        # Check threshold from config
+        # 检查配置中的阈值
+
         min_msg = self.config.get("min_msg_threshold", 3)
         if not daily_data or daily_data.msg_sent < min_msg:
             yield event.plain_result(
@@ -89,17 +92,20 @@ class LoveFormulaPlugin(Star):
             )
             return
 
-        # 2. Calculate Scores
+        # 2. 计算分数
+
         scores = LoveCalculator.calculate_scores(daily_data)
 
-        # 3. Classify Archetype
+        # 3. 归类人设
+
         archetype_key, archetype_name = ArchetypeClassifier.classify(scores)
 
-        # 4. LLM Analysis
+        # 4. LLM 分析
         commentary = "获取失败"
         if self.config.get("enable_llm_commentary", True):
             raw_data_dict = daily_data.model_dump()
-            # Pass provider_id if configured
+            # 如果配置了 provider_id 则传入
+
             provider_id = self.config.get("llm_provider_id", "")
             commentary = await self.llm.generate_commentary(
                 scores["raw"], archetype_name, raw_data_dict, provider_id=provider_id
@@ -107,7 +113,8 @@ class LoveFormulaPlugin(Star):
         else:
             commentary = "LLM点评已关闭。"
 
-        # 5. Render Image
+        # 5. 渲染图片
+
         theme = self.config.get("theme", "galgame")
         render_data = {
             "scores": scores,
