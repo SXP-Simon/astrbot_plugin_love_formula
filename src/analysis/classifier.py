@@ -2,12 +2,12 @@ class ArchetypeClassifier:
     """人设分类器，根据得分将用户归类为特定的网络人设"""
 
     ARCHETYPES = {
-        "THE_SIMP": "沸羊羊 (The Simp)",
-        "THE_PLAYER": "海王 (The Player)",
-        "HIMBO": "笨蛋美人 (Himbo)",
-        "NPC": "路人甲 (NPC)",
-        "IDOL": "高冷男神/女神 (The Idol)",
-        "NORMAL": "普通群友 (Normal)",
+        "THE_SIMP": "纯爱战神 (反讽)",
+        "THE_PLAYER": "现充达人",
+        "HIMBO": "傲娇败犬",
+        "NPC": "背景板 NPC",
+        "IDOL": "顶级偶像",
+        "NORMAL": "一般群友",
     }
 
     @staticmethod

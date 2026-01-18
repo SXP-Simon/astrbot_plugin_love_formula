@@ -139,11 +139,11 @@ class LoveFormulaPlugin(Star):
             "title": archetype_name,
             "score": int((scores["simp"] + scores["vibe"] + scores["ick"]) / 3),
             "metrics": {
-                "舔狗值": f"{scores['simp']}%",
-                "魅力值": f"{scores['vibe']}%",
-                "下头值": f"{scores['ick']}%",
-                "互动频率": f"{raw_data_dict.get('msg_sent', 0)}条/日",
-                "平均字数": f"{int(raw_data_dict.get('text_len_total', 0) / raw_data_dict.get('msg_sent', 1)) if raw_data_dict.get('msg_sent', 0) > 0 else 0}字",
+                "纯爱值": f"{scores['simp']}%",
+                "存在感": f"{scores['vibe']}%",
+                "败犬值": f"{scores['ick']}%",
+                "营业频率": f"{raw_data_dict.get('msg_sent', 0)}条/日",
+                "小作文功率": f"{int(raw_data_dict.get('text_len_total', 0) / raw_data_dict.get('msg_sent', 1)) if raw_data_dict.get('msg_sent', 0) > 0 else 0}字/条",
             },
             "logic_insights": logic_insights,
             "comment": llm_result.get("comment", "获取失败"),
@@ -185,12 +185,12 @@ class LoveFormulaPlugin(Star):
         latex = r"L = \sigma("
         latex += rf"{s_raw:.1f} \cdot S_{{imp}} + "
         latex += rf"{v_raw:.1f} \cdot V_{{ibe}} - "
-        latex += rf"{i_raw:.1f} \cdot I_{{ck}}"
+        latex += rf"{i_raw:.1f} \cdot B_{{xing}}"
         latex += r") \approx "  # Wait, render_data is local to handle_message
 
         # Re-calculating score for the string is redundant, let's just make it a clean formula
         score = int((scores["simp"] + scores["vibe"] + scores["ick"]) / 3)
-        return rf"f(S, V, I) = \text{{norm}}({s_raw:.1f}, {v_raw:.1f}, {i_raw:.1f}) \Rightarrow {score}\%"
+        return rf"f(S, V, B) = \text{{norm}}({s_raw:.1f}, {v_raw:.1f}, {i_raw:.1f}) \Rightarrow {score}\%"
 
     def _generate_diagnostic_insights(
         self, scores: dict, raw_data: dict, archetype_key: str
@@ -215,7 +215,7 @@ class LoveFormulaPlugin(Star):
         reaction_recv = raw_data.get("reaction_received", 0)
         if scores["vibe"] > 60:
             insights.append(
-                f"吸引力判定: 你的言论引发了群友的广泛关注。收到了 {reply_recv} 次回复和 {reaction_recv} 次表情回应。这表明你今天的发言质量极高，是群内的社交核心。"
+                f"高位存在感判定: 你的存在感已突破天际，引发了 {reply_recv} 次回复和 {reaction_recv} 次表情回应。整场社交节奏都在你的支配之下。"
             )
         elif scores["vibe"] < 20:
             insights.append(
@@ -226,11 +226,11 @@ class LoveFormulaPlugin(Star):
                 "反馈能量判定: 你的发言获得了一定程度的反馈，社交磁场保持稳定。"
             )
 
-        # 3. 下头值诊断 (I)
+        # 3. 败兴值诊断 (I)
         recall = raw_data.get("recall_count", 0)
         if recall > 0:
             insights.append(
-                f"社交稳定性判定: 你今日撤回了 {recall} 条消息。在社交模型中，频繁撤回被视为‘犹豫’或‘不确定性’，每撤回一条会显著增加你的‘下头值’({LoveCalculator.W_RECALL}分/条)。"
+                f"败犬气息判定: 你今日撤回了 {recall} 条消息。这种‘撤旗’行为在社交模型中被视为极度的不自信，每撤回一条都会垂直增加你的‘败犬值’。"
             )
 
         # 4. 人设由来
@@ -245,7 +245,7 @@ class LoveFormulaPlugin(Star):
         reasons = {
             "THE_SIMP": f"由于你的投入({scores['simp']}%)远高于群友对你的反馈({scores['vibe']}%)，满足了‘沸羊羊’判定门槛。",
             "THE_PLAYER": f"因为你只需较低的投入就能换取极高的群友反馈({scores['vibe']}%)，表现出典型的‘海王’特征。",
-            "HIMBO": f"虽然你的魅力值({scores['vibe']}%)很高，但撤回行为带来的下头值({scores['ick']}%)让你的表现显得矛盾而迷人。",
+            "HIMBO": f"虽然你的魅力值({scores['vibe']}%)很高，但撤回行为带来的败兴值({scores['ick']}%)让你的表现显得矛盾而迷人。",
             "IDOL": f"你几乎不主动付出({scores['simp']}%)却依然保有一定的群友关注，这种高冷姿态符合‘男神/女神’的设定。",
             "NPC": "你今日的各项交互数据均处于极低水平，系统判定你正在群内‘潜水’观望。",
             "NORMAL": "各项指标分布均匀，没有极端异常的数据表现，是一个平稳社交的普通群友。",

@@ -1,27 +1,28 @@
 import math
+
 from ..models.tables import LoveDailyRef
 
 
 class LoveCalculator:
     """恋爱成分计算器，负责各项指标权重的定义和计算"""
 
-    # 舔狗值权重 (付出/产出)
+    # 纯爱值权重 (付出/产出)
     W_MSG_SENT = 1.0
     W_POKE_SENT = 2.0
     W_AVG_LEN = 0.05  # 每个字符
 
-    # 魅力值权重 (反馈/输入)
+    # 存在感权重 (反馈/输入)
     W_REPLY_RECV = 3.0
     W_REACTION_RECV = 2.0
     W_POKE_RECV = 2.0
 
-    # 下头值权重 (负面行为)
+    # 败犬值权重 (负面行为)
     W_RECALL = 5.0
 
     @staticmethod
     def calculate_scores(data: LoveDailyRef) -> dict:
         """根据每日数据计算各项得分"""
-        # 1. 舔狗值计算 (S)
+        # 1. 纯爱值计算 (S)
         avg_len = data.text_len_total / data.msg_sent if data.msg_sent > 0 else 0
         raw_simp = (
             data.msg_sent * LoveCalculator.W_MSG_SENT
@@ -29,14 +30,14 @@ class LoveCalculator:
             + avg_len * LoveCalculator.W_AVG_LEN
         )
 
-        # 2. 魅力值计算 (V)
+        # 2. 存在感计算 (V)
         raw_vibe = (
             data.reply_received * LoveCalculator.W_REPLY_RECV
             + data.reaction_received * LoveCalculator.W_REACTION_RECV
             + data.poke_received * LoveCalculator.W_POKE_RECV
         )
 
-        # 3. 下头值计算 (I)
+        # 3. 败犬值计算 (I)
         raw_ick = data.recall_count * LoveCalculator.W_RECALL
 
         # 4. 归一化 (使用 sigmoid 函数映射到 0-100)

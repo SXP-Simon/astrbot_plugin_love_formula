@@ -281,31 +281,17 @@
 
         <div class="content">
             <div class="score-section">
-                <div class="score-label">今日恋爱社交能量</div>
+                <div class="score-label">群聊好感度</div>
                 <div class="score-value">{{ data.score }}%</div>
             </div>
 
             <div class="radar-chart">
+                {% for name, val in data.metrics.items() %}
                 <div class="metric-item">
-                    <span class="metric-name">舔狗值</span>
-                    <span class="metric-val">{{ data.metrics["舔狗值"] }}</span>
+                    <span class="metric-name">{{ name }}</span>
+                    <span class="metric-val">{{ val }}</span>
                 </div>
-                <div class="metric-item">
-                    <span class="metric-name">魅力值</span>
-                    <span class="metric-val">{{ data.metrics["魅力值"] }}</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-name">下头值</span>
-                    <span class="metric-val">{{ data.metrics["下头值"] }}</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-name">互动频率</span>
-                    <span class="metric-val">{{ data.metrics["互动频率"] }}</span>
-                </div>
-                <div class="metric-item">
-                    <span class="metric-name">平均字数</span>
-                    <span class="metric-val">{{ data.metrics["平均字数"] }}</span>
-                </div>
+                {% endfor %}
             </div>
 
             <div class="comment-box markdown-body" id="comment-box">
@@ -349,7 +335,7 @@
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener("DOMContentLoaded", function () {
             // Render Markdown
             const mdElements = document.querySelectorAll('.markdown-body');
             mdElements.forEach(el => {
@@ -359,10 +345,10 @@
             // Render LaTeX
             renderMathInElement(document.body, {
                 delimiters: [
-                    {left: '$$', right: '$$', display: true},
-                    {left: '$', right: '$', display: false}
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false }
                 ],
-                throwOnError : false
+                throwOnError: false
             });
         });
     </script>
