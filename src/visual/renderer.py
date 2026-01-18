@@ -1,7 +1,9 @@
+from jinja2 import Environment, FileSystemLoader
+
 from astrbot.api import logger
 from astrbot.core import html_renderer
-from jinja2 import Environment, FileSystemLoader
 from astrbot.core.star.context import Context
+
 from .theme_manager import ThemeManager
 
 

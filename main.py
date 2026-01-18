@@ -1,20 +1,21 @@
 import os
+
 from astrbot.api import logger
-from astrbot.core.star import Star
-from astrbot.core.star.context import Context
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.event.filter import CustomFilter, EventMessageType
 from astrbot.core.config import AstrBotConfig
+from astrbot.core.star import Star
+from astrbot.core.star.context import Context
 
-from .src.persistence.database import DBManager
-from .src.persistence.repo import LoveRepo
-from .src.handlers.message_handler import MessageHandler
-from .src.handlers.notice_handler import NoticeHandler
 from .src.analysis.calculator import LoveCalculator
 from .src.analysis.classifier import ArchetypeClassifier
 from .src.analysis.llm_analyzer import LLMAnalyzer
-from .src.visual.theme_manager import ThemeManager
+from .src.handlers.message_handler import MessageHandler
+from .src.handlers.notice_handler import NoticeHandler
+from .src.persistence.database import DBManager
+from .src.persistence.repo import LoveRepo
 from .src.visual.renderer import LoveRenderer
+from .src.visual.theme_manager import ThemeManager
 
 
 class NoticeFilter(CustomFilter):
@@ -55,7 +56,7 @@ class LoveFormulaPlugin(Star):
     @filter.event_message_type(EventMessageType.GROUP_MESSAGE)
     async def on_group_message(self, event: AstrMessageEvent):
         """处理群消息监听"""
-        logger.info(
+        logger.debug(
             f"[LoveFormula] on_group_message 触发: {event.message_obj.message_id}"
         )
         await self.msg_handler.handle_message(event)
@@ -206,7 +207,7 @@ class LoveFormulaPlugin(Star):
             )
         else:
             insights.append(
-                f"社交投入判定: 你今日的发言频率与互动强度适中，处于健康的社交平衡区间，没有表现出过度的低姿态倾向。"
+                "社交投入判定: 你今日的发言频率与互动强度适中，处于健康的社交平衡区间，没有表现出过度的低姿态倾向。"
             )
 
         # 2. 魅力值诊断 (V)
@@ -222,7 +223,7 @@ class LoveFormulaPlugin(Star):
             )
         else:
             insights.append(
-                f"反馈能量判定: 你的发言获得了一定程度的反馈，社交磁场保持稳定。"
+                "反馈能量判定: 你的发言获得了一定程度的反馈，社交磁场保持稳定。"
             )
 
         # 3. 下头值诊断 (I)
@@ -246,7 +247,7 @@ class LoveFormulaPlugin(Star):
             "THE_PLAYER": f"因为你只需较低的投入就能换取极高的群友反馈({scores['vibe']}%)，表现出典型的‘海王’特征。",
             "HIMBO": f"虽然你的魅力值({scores['vibe']}%)很高，但撤回行为带来的下头值({scores['ick']}%)让你的表现显得矛盾而迷人。",
             "IDOL": f"你几乎不主动付出({scores['simp']}%)却依然保有一定的群友关注，这种高冷姿态符合‘男神/女神’的设定。",
-            "NPC": f"你今日的各项交互数据均处于极低水平，系统判定你正在群内‘潜水’观望。",
-            "NORMAL": f"各项指标分布均匀，没有极端异常的数据表现，是一个平稳社交的普通群友。",
+            "NPC": "你今日的各项交互数据均处于极低水平，系统判定你正在群内‘潜水’观望。",
+            "NORMAL": "各项指标分布均匀，没有极端异常的数据表现，是一个平稳社交的普通群友。",
         }
         return reasons.get(key, "数据分布符合该人设的特征判定区间。")

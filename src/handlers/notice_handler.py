@@ -1,4 +1,5 @@
 from astrbot.api import logger
+
 from ..persistence.repo import LoveRepo
 
 
