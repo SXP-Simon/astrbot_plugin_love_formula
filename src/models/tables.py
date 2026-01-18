@@ -7,6 +7,7 @@ class LoveDailyRef(SQLModel, table=True):
     """每日恋爱成分指标快照"""
 
     __tablename__ = "love_daily_ref"
+    __table_args__ = {"extend_existing": True}
 
     id: Optional[int] = Field(default=None, primary_key=True)
     date: DateType = Field(index=True)
@@ -38,6 +39,7 @@ class MessageOwnerIndex(SQLModel, table=True):
     """消息归属索引，用于Reaction归因"""
 
     __tablename__ = "message_owner_index"
+    __table_args__ = {"extend_existing": True}
 
     message_id: str = Field(primary_key=True)
     user_id: str
