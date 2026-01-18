@@ -26,9 +26,56 @@ if project_root not in sys.path:
 if os.path.exists("/app") and "/app" not in sys.path:
     sys.path.insert(0, "/app")
 
-print(f"Paths added:\nPlugins: {plugins_dir}\nProject: {project_root}")
+# Mock AstrBot modules BEFORE importing plugin
+from unittest.mock import MagicMock
 
-# Import as package to support relative imports in main.py
+# 1. Mock LogManager
+mock_log = MagicMock()
+sys.modules["astrbot.core.log"] = mock_log
+mock_log.LogManager.GetLogger.return_value = MagicMock()
+
+# 2. Mock Context and Star
+mock_star_module = MagicMock()
+sys.modules["astrbot.core.star"] = mock_star_module
+sys.modules["astrbot.core.star.context"] = mock_star_module
+
+
+class MockStar:
+    def __init__(self, context):
+        self.context = context
+
+
+mock_star_module.Star = MockStar
+mock_star_module.Context = MagicMock
+
+# 3. Mock AstrBotConfig
+mock_config_module = MagicMock()
+sys.modules["astrbot.core.config"] = mock_config_module
+mock_config_module.AstrBotConfig = MagicMock
+
+# 4. Mock API Event and Filters
+mock_event_module = MagicMock()
+sys.modules["astrbot.api.event"] = mock_event_module
+sys.modules["astrbot.api.event.filter"] = mock_event_module
+
+
+# Mock decorators to just return the function
+def mock_decorator(*args, **kwargs):
+    def decorator(func):
+        return func
+
+    return decorator
+
+
+# Handle @filter.event_message_type etc
+mock_event_module.filter.event_message_type = mock_decorator
+mock_event_module.filter.command = mock_decorator
+mock_event_module.filter.custom_filter = mock_decorator
+mock_event_module.filter.CustomFilter = object  # Base class
+mock_event_module.EventMessageType = MagicMock()
+mock_event_module.AstrMessageEvent = MagicMock
+
+# Now safe to import plugin
 try:
     from astrbot_plugin_love_formula.main import LoveFormulaPlugin
 except ImportError as e:
@@ -36,8 +83,9 @@ except ImportError as e:
     sys.path.insert(0, plugin_dir)
     from main import LoveFormulaPlugin
 
-from astrbot.core.star.context import Context
-from astrbot.core.event.model.event import AstrMessageEvent
+# Re-assign for use in test
+Context = mock_star_module.Context
+AstrMessageEvent = mock_event_module.AstrMessageEvent
 
 
 async def run_verification():
@@ -76,7 +124,7 @@ async def run_verification():
 
     # 3. Simulate Data Ingestion (Message)
     # User 123 sends message in Group 456
-    mock_msg_event = MagicMock(spec=AstrMessageEvent)
+    mock_msg_event = MagicMock()
     mock_msg_event.message_obj.group_id = "456"
     mock_msg_event.message_obj.sender.user_id = "123"
     mock_msg_event.message_obj.message_id = "msg_1"
@@ -100,8 +148,10 @@ async def run_verification():
     }
 
     # Mock wrapper for notice
-    mock_notice_event = MagicMock(spec=AstrMessageEvent)
-    mock_notice_event.message_obj.raw_data = poke_event
+    mock_notice_event = MagicMock()
+    mock_notice_event.message_obj.raw_message = (
+        poke_event  # Fix: raw_message not raw_data based on main.py check
+    )
     await plugin.on_notice(mock_notice_event)
     print("[Pass] Notice Handled")
 
@@ -114,7 +164,7 @@ async def run_verification():
 
     # 6. Simulate Command /今日人设
     # Mock event for command
-    mock_cmd_event = MagicMock(spec=AstrMessageEvent)
+    mock_cmd_event = MagicMock()
     mock_cmd_event.message_obj.group_id = "456"
     mock_cmd_event.message_obj.sender.user_id = "123"
 

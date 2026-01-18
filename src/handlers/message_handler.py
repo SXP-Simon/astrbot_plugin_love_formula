@@ -1,4 +1,4 @@
-from astrbot.core.event.model.event import AstrMessageEvent
+from astrbot.api.event import AstrMessageEvent
 from ..persistence.repo import LoveRepo
 from ..models.tables import LoveDailyRef
 

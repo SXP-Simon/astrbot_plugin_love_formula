@@ -1,9 +1,10 @@
 import os
-import logging
+from astrbot.core.log import LogManager
 from astrbot.core.star import Star
 from astrbot.core.star.context import Context
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.event.filter import EventMessageType
+from astrbot.api.event.filter import CustomFilter, EventMessageType
+from astrbot.core.config import AstrBotConfig
 
 from .src.persistence.database import DBManager
 from .src.persistence.repo import LoveRepo
@@ -15,7 +16,17 @@ from .src.analysis.llm_analyzer import LLMAnalyzer
 from .src.visual.theme_manager import ThemeManager
 from .src.visual.renderer import LoveRenderer
 
-logger = logging.getLogger("astrbot_plugin_love_formula")
+logger = LogManager.GetLogger("astrbot_plugin_love_formula")
+
+
+class NoticeFilter(CustomFilter):
+    def filter(self, event: AstrMessageEvent, cfg: AstrBotConfig) -> bool:
+        if not event.message_obj.raw_message:
+            return False
+        raw = event.message_obj.raw_message
+        if isinstance(raw, dict):
+            return raw.get("post_type") == "notice"
+        return False
 
 
 class LoveFormulaPlugin(Star):
@@ -24,7 +35,9 @@ class LoveFormulaPlugin(Star):
         self.config = config
 
         # 1. Init Persistence
-        db_path = os.path.join(context.plugin_data_dir, "love_formula.db")
+        db_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "love_formula.db"
+        )
         self.db_mgr = DBManager(db_path)
         self.repo = LoveRepo(self.db_mgr)
 
@@ -45,15 +58,15 @@ class LoveFormulaPlugin(Star):
         """Handle group messages"""
         await self.msg_handler.handle_message(event)
 
-    @filter.platform_event_type("notice")
+    @filter.custom_filter(NoticeFilter)
     async def on_notice(self, event: AstrMessageEvent):
         """
         Handle Notice events (OneBot V11).
         Note: logic depends on how AstrBot wraps notice events.
         Assuming event.raw_data contains the OneBot payload.
         """
-        if hasattr(event, "message_obj") and event.message_obj.raw_data:
-            await self.notice_handler.handle_notice(event.message_obj.raw_data)
+        if hasattr(event, "message_obj") and event.message_obj.raw_message:
+            await self.notice_handler.handle_notice(event.message_obj.raw_message)
 
     @filter.command("今日人设")
     async def cmd_love_profile(self, event: AstrMessageEvent):
