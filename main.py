@@ -33,10 +33,30 @@ class LoveFormulaPlugin(Star):
         super().__init__(context)
         self.config = config
 
-        # 1. 初始化持久层
-        db_path = os.path.join(
+        # 1. 确定持久化存储路径
+        from astrbot.core.utils.astrbot_path import get_astrbot_plugin_data_path
+
+        # 插件数据目录: data/plugin_data/astrbot_plugin_love_formula/
+        data_dir = os.path.join(
+            get_astrbot_plugin_data_path(), "astrbot_plugin_love_formula"
+        )
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir, exist_ok=True)
+
+        db_path = os.path.join(data_dir, "love_formula.db")
+
+        # 迁移逻辑: 如果旧路径存在数据库，则移动到新路径
+        old_db_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "love_formula.db"
         )
+        if os.path.exists(old_db_path) and not os.path.exists(db_path):
+            try:
+                import shutil
+
+                shutil.move(old_db_path, db_path)
+            except Exception as e:
+                pass  # 如果移动失败，则按新路径初始化，由 DBManager 处理
+
         self.db_mgr = DBManager(db_path)
         self.repo = LoveRepo(self.db_mgr)
 
