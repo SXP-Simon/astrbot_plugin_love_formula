@@ -52,6 +52,7 @@ class LoveRenderer:
                 return_url=False,
                 options={
                     "type": "jpeg",
+                    "quality": 100,
                     "full_page": True,
                 },
             )
