@@ -51,7 +51,10 @@ class LoveRenderer:
             # 将生成的 HTML 作为模板字符串传递，数据为空（因为已经渲染过了）
             # 注意：这要求 html_renderer 能够处理已经是 HTML 的内容
             path = await html_renderer.render_custom_template(
-                tmpl_str=html_content, tmpl_data={}, return_url=False
+                tmpl_str=html_content,
+                tmpl_data={},
+                return_url=False,
+                options={"type": "jpeg", "quality": 95},
             )
             logger.info(f"图片生成完成: {path}")
             return path
