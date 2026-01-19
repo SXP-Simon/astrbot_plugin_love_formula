@@ -21,11 +21,13 @@ class MessageHandler:
         self.nos_col = NostalgiaCollector()
 
     async def handle_message(self, event: AstrMessageEvent):
-        if not event.message_obj.group_id:
-            return
-
         group_id = str(event.message_obj.group_id)
         user_id = str(event.message_obj.sender.user_id)
+        msg_id = str(event.message_obj.message_id)
+
+        # 0. 去重检查 (防止重复处理同一条消息导致虚假复读)
+        if await self.repo.get_message_owner(msg_id):
+            return
 
         # 1. 获取上下文状态
         last_group_time = MessageHandler._group_last_msg_time.get(group_id, 0)
@@ -86,12 +88,14 @@ class MessageHandler:
         # 按照时间从小到大排序
         sorted_messages = sorted(messages, key=lambda x: x.get("time", 0))
 
-        # 记录每位用户的统计，最后统一入库或按条入库（这里按条入库以复用 repo 逻辑，并处理重复）
+        # 记录每位用户的统计
         group_last_time = 0
+        user_history_text = {}  # {user_id: last_text} 用于回填中的复读判定
         stats = {
             "msg_count": 0,
             "image_count": 0,
             "topic_count": 0,
+            "repeat_count": 0,
             "reply_count": 0,
             "at_count": 0,
         }
@@ -143,7 +147,7 @@ class MessageHandler:
                         if at_qq:
                             at_targets.append(str(at_qq))
 
-            # 2. 判定话题 (Nos)
+            # 2. 判定话题与复读 (Nos & Ick)
             topic_inc = 0
             if (
                 group_last_time > 0
@@ -152,6 +156,10 @@ class MessageHandler:
                 topic_inc = 1
             elif group_last_time == 0:
                 topic_inc = 1
+
+            last_text = user_history_text.get(user_id, "")
+            repeat_inc = 1 if text_content and text_content == last_text else 0
+            user_history_text[user_id] = text_content
 
             # 3. 持久化与交互处理
             await self.repo.save_message_index(msg_id, group_id, user_id)
@@ -162,11 +170,12 @@ class MessageHandler:
                 image_count=current_images,
             )
 
-            if topic_inc > 0:
+            if topic_inc > 0 or repeat_inc > 0:
                 await self.repo.update_behavior_stats(
-                    group_id, user_id, topic_inc=topic_inc
+                    group_id, user_id, topic_inc=topic_inc, repeat_inc=repeat_inc
                 )
-                stats["topic_count"] += 1
+                stats["topic_count"] += topic_inc
+                stats["repeat_count"] += repeat_inc
 
             # 历史交互归因
             if reply_target_msg_id:
@@ -194,5 +203,12 @@ class MessageHandler:
         # 更新类静态上下文（防止回填后立即说话判定错误）
         if group_last_time > 0:
             MessageHandler._group_last_msg_time[group_id] = group_last_time
+
+        # 同步各用户的最后文本到内存缓存，用于接下来的实时判定
+        if group_id not in MessageHandler._user_last_msg_text:
+            MessageHandler._user_last_msg_text[group_id] = {}
+
+        for uid, last_txt in user_history_text.items():
+            MessageHandler._user_last_msg_text[group_id][uid] = last_txt
 
         return stats
