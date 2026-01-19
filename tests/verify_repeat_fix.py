@@ -1,7 +1,7 @@
 import asyncio
-import sys
 import os
-from unittest.mock import MagicMock, AsyncMock
+import sys
+from unittest.mock import AsyncMock, MagicMock
 
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -15,7 +15,7 @@ sys.modules["astrbot.core"] = mock_astrbot.core
 sys.modules["astrbot.core.message"] = mock_astrbot.core.message
 sys.modules["astrbot.core.message.components"] = mock_astrbot.core.message.components
 
-from src.handlers.message_handler import MessageHandler
+from src.handlers.message_handler import MessageHandler  # noqa: E402
 
 
 async def test_repeat_fix():
@@ -78,7 +78,6 @@ async def test_repeat_fix():
     ]
 
     # Mock date to today
-    from datetime import date
     import time
 
     now_ts = int(time.time())

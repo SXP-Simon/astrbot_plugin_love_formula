@@ -19,7 +19,11 @@ class DBManager:
     async def init_db(self):
         """初始化数据库，创建所有定义的表"""
         # 必须显式导入模型类，确保它们被注册到 SQLModel.metadata 中
-        from ..models.tables import LoveDailyRef, MessageOwnerIndex, UserCooldown  # noqa: F401
+        from ..models.tables import (  # noqa: F401
+            LoveDailyRef,
+            MessageOwnerIndex,
+            UserCooldown,
+        )
 
         async with self.engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
