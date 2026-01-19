@@ -22,7 +22,7 @@
 
 ---
 
-![galgame-demo](.\assets\themes\galgame\galgame-demo.jpg)
+![galgame-demo](./assets/themes/galgame/galgame-demo.jpg)
 
 ---
 
