@@ -67,7 +67,7 @@
     "enable_history_analysis": {
         "description": "启用聊天记录深度侧写",
         "type": "bool",
-        "default": true,
+        "default": false,
         "hint": "是否启用基于最近聊天记录的“灵魂回响”深度分析模块。"
     },
     "analyze_history_count": {

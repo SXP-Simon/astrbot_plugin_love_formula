@@ -103,11 +103,17 @@ class LLMAnalyzer:
         """Attempts to repair common LLM JSON syntax errors."""
 
         # 1. Fix unquoted hashtags: #tag -> "#tag"
-        # Only match hashtags that are not already inside quotes.
-        # This regex matches # followed by non-space/non-end-bracket characters.
-        text = re.sub(
-            r'(?<!["\'])(#[a-zA-Z0-9_\u4e00-\u9fa5]+)(?!["\'])', r'"\1"', text
-        )
+        # Using a "match and skip" strategy for strings to avoid false positives.
+        # This regex matches strings or hashtags.
+        pattern = r'("(?:\\.|[^"\\])*")|(#[\w\u4e00-\u9fa5]+)'
+
+        def replace_tag(match):
+            if match.group(1):  # It's a string, return as is
+                return match.group(1)
+            # It's an unquoted hashtag, wrap it
+            return f'"{match.group(2)}"'
+
+        text = re.sub(pattern, replace_tag, text)
 
         # 2. Fix trailing commas
         text = re.sub(r",\s*([\]\}])", r"\1", text)
@@ -116,7 +122,7 @@ class LLMAnalyzer:
 
     def _reconstruct_from_regex(self, text: str) -> dict | None:
         """Heuristic extraction of deep dive data using regex fallback."""
-        # 1. Keywords
+        # 1. Keywords: Matches Keywords: ["#a", "#b"] or Keywords: #a #b
         kw_match = re.search(
             r'(?:KEYWORDS|keywords)["\']?\s*[:：]\s*[\[\(]?([^\]\)]+)[\]\)]?',
             text,
@@ -124,10 +130,11 @@ class LLMAnalyzer:
         )
         keywords = []
         if kw_match:
+            # Extract anything starting with #
             keywords = re.findall(r'#([^\s,，"\'\]\}]+)', kw_match.group(1))
             keywords = [f"#{k}" for k in keywords]
 
-        # 2. Analysis
+        # 2. Analysis: Extracts content after ANALYSIS:
         ana_match = re.search(
             r'(?:ANALYSIS|analysis)["\']?\s*[:：]\s*["\']?(.*?)(?:["\']?\s*[,，]?\s*(?:"|EVIDENCE|evidence)|$)',
             text,
@@ -137,34 +144,52 @@ class LLMAnalyzer:
         if ana_match:
             analysis = ana_match.group(1).strip().strip('",')
 
-        # 3. Evidence
+        # 3. Evidence: Extracts scenes and their dialogues
         evidence = []
-        # Try to find scenes using title and dialogue patterns
-        scenes = re.finditer(
-            r'(?:title|TITLE)["\']?\s*[:：]\s*["\']?([^"\',]+)["\']?.*?dialogue["\']?\s*[:：]\s*\[(.*?)\]',
-            text,
-            re.DOTALL | re.IGNORECASE,
-        )
-        for scene_match in scenes:
-            title = scene_match.group(1).strip().strip('",')
-            diag_blob = scene_match.group(2)
-            dialogue = []
-            # Improved dialogue entry extraction
-            # Matches: {"role": "...", "content": "..."}
-            diag_entries = re.finditer(
-                r'\{[^{}]*?"role"\s*:\s*["\']?([^"\',]+)["\']?\s*,\s*"content"\s*:\s*["\']?([^"\}]+)["\']?\s*\}',
-                diag_blob,
-                re.DOTALL,
+        # Find scenes using title/TITLE as anchors
+        scene_blocks = re.split(r'(?i)title["\']?\s*[:：]', text)[1:]
+        for block in scene_blocks:
+            # Extract title (up to the next key or newline/comma)
+            title_match = re.match(r'\s*["\']?([^"\',]+)["\']?', block)
+            if not title_match:
+                continue
+            title = title_match.group(1).strip()
+
+            # Find the dialogue portion in this block
+            diag_match = re.search(
+                r'(?i)dialogue["\']?\s*[:：]\s*\[(.*)', block, re.DOTALL
             )
-            for d_match in diag_entries:
-                role = d_match.group(1).strip().strip('", ')
-                content = d_match.group(2).strip().strip('", ')
-                dialogue.append(
-                    {
-                        "role": role,
-                        "content": content,
-                    }
+            if not diag_match or not diag_match.group(1):
+                continue
+
+            diag_blob = diag_match.group(1)
+            # Find the closing bracket for this dialogue array by looking for the last } followed by ]
+            last_bracket = diag_blob.rfind("]")
+            if last_bracket != -1:
+                diag_blob = diag_blob[:last_bracket]
+
+            dialogue = []
+            # Extract entries like {"role": "...", "content": "..."}
+            # Handles varying property order and quoting styles
+            entries = re.findall(r"\{([^{}]+)\}", diag_blob)
+            for entry in entries:
+                role_m = re.search(
+                    r'["\']?role["\']?\s*[:：]\s*["\']?([^"\']+)["\']?',
+                    entry,
+                    re.IGNORECASE,
                 )
+                content_m = re.search(
+                    r'["\']?content["\']?\s*[:：]\s*["\']?([^"\']+)["\']?',
+                    entry,
+                    re.IGNORECASE,
+                )
+                if role_m and content_m:
+                    dialogue.append(
+                        {
+                            "role": role_m.group(1).strip(),
+                            "content": content_m.group(1).strip(),
+                        }
+                    )
 
             if dialogue:
                 evidence.append(
@@ -174,6 +199,10 @@ class LLMAnalyzer:
                         "dialogue": dialogue,
                     }
                 )
+
+        if keywords or analysis or evidence:
+            return {"keywords": keywords, "content": analysis, "evidence": evidence}
+        return None
 
         if keywords or analysis or evidence:
             return {"keywords": keywords, "content": analysis, "evidence": evidence}
