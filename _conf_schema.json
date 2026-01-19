@@ -73,8 +73,14 @@
     "analyze_history_count": {
         "type": "int",
         "description": "侧写分析历史消息数",
-        "default": 50,
-        "hint": "大模型分析时读取的最近群聊消息条数（建议 20-50 条）。"
+        "default": 100,
+        "hint": "大模型分析时读取的最近群聊消息条数。"
+    },
+    "context_window_size": {
+        "type": "int",
+        "description": "深度侧写上下文窗口大小",
+        "default": 8,
+        "hint": "在深度侧写中，提取目标用户发言前后关联的消息条数。"
     },
     "max_evidence_scenes": {
         "title": "证据场景最大数量",

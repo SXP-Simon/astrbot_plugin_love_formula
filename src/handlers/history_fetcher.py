@@ -13,7 +13,6 @@ class OneBotAdapter:
     def __init__(self, context: Context, config: dict):
         self.context = context
         self.config = config
-        self.history_count = config.get("analyze_history_count", 50)
         self.filter_users = [str(u) for u in config.get("filter_users", [])]
 
     async def fetch_context(
@@ -29,148 +28,108 @@ class OneBotAdapter:
         Returns:
             list[dict]: [{'time': str, 'role': str, 'nickname': str, 'content': str}, ...]
         """
-        # 确保我们在群聊环境中
-        if not event.message_obj.group_id:
-            logger.warning("OneBotAdapter: 非群聊消息，无法获取历史记录。")
+        # 1. 获取较大的消息池 (最大 300 条，或者历史配置的 5 倍)
+        history_count = self.config.get("analyze_history_count", 50)
+        pool_size = min(300, history_count * 5)
+        raw_pool = await self.fetch_raw_group_history(event, count=pool_size)
+        if not raw_pool:
+            logger.warning("OneBotAdapter: 未能获取到任何历史消息池。")
             return []
 
-        group_id = event.message_obj.group_id
+        # 按照时间从旧到新排序
+        raw_pool = sorted(raw_pool, key=lambda x: x.get("time", 0))
 
-        # 尝试从事件或上下文中获取 OneBot 适配器
-        # 注意：AstrBot 抽象了平台，但为了获取历史记录，我们可能 needing 原始 API 访问。
-        # 此实现假设底层平台兼容 OneBot V11。
-
-        raw_history = []
-        try:
-            # 尝试 1: Context.get_action (如果平台已实现)
-            # 标准 OneBot V11 API: get_group_msg_history
-            # 我们从事件中访问平台实例。
-            platform = event.platform
-            if not platform:
-                logger.error("OneBotAdapter: 事件中未找到平台实例。")
-                return []
-
-            # 构建 get_group_msg_history 的参数
-            # 部分实现使用 'get_group_msg_history'，其他使用 'get_history_msg'
-            params = {
-                "group_id": int(group_id) if str(group_id).isdigit() else group_id,
-                "count": self.history_count,
-            }
-
-            logger.debug(f"正在获取群 {group_id} 的历史记录, 数量={self.history_count}")
-
-            # 使用平台特定的调用方法。
-            # 尝试从事件中访问 bot 对象。
-            # 使用平台特定的调用方法。
-            # 尝试从事件中访问 bot 对象。
-            bot = getattr(event, "bot", None)
-
-            resp = None
-            success = False
-
-            # Strategy 1: Direct Adapter Call (Unpacked) - Most likely correct for OneBot/CQHttp
-            # This bypasses AstrBot's wrapper which might incorrectly pack kwargs into a dict
-            if (
-                not success
-                and bot
-                and hasattr(bot, "api")
-                and hasattr(bot.api, "call_action")
-            ):
-                try:
-                    resp = await bot.api.call_action("get_group_msg_history", **params)
-                    success = True
-                except Exception as e:
-                    logger.warning(
-                        f"OneBotAdapter: Strategy 1 (api.call_action) failed: {e}"
-                    )
-
-            # Strategy 2: AstrBot Universal Call (Unpacked)
-            if not success and bot and hasattr(bot, "call_api"):
-                try:
-                    resp = await bot.call_api("get_group_msg_history", **params)
-                    success = True
-                except Exception as e:
-                    logger.warning(
-                        f"OneBotAdapter: Strategy 2 (bot.call_api unpacked) failed: {e}"
-                    )
-
-            # Strategy 3: AstrBot Universal Call (Packed Dictionary)
-            if not success and bot and hasattr(bot, "call_api"):
-                try:
-                    resp = await bot.call_api("get_group_msg_history", params)
-                    success = True
-                except Exception as e:
-                    logger.warning(
-                        f"OneBotAdapter: Strategy 3 (bot.call_api packed) failed: {e}"
-                    )
-
-            if not resp and self.context:
-                # Last resort: Try accessing bot via context global
-                global_bot = self.context.get_bot()
-                if global_bot and hasattr(global_bot, "call_api"):
-                    try:
-                        resp = await global_bot.call_api(
-                            "get_group_msg_history", params
-                        )
-                    except Exception:
-                        pass
-
-            if not resp:
-                logger.warning("OneBotAdapter: 获取历史记录失败或未找到 API。")
-                return []
-
-            messages = resp.get("messages", [])
-            if not messages:
-                logger.warning("OneBotAdapter: API 未返回任何消息。")
-                return []
-
-            raw_history = messages
-
-        except Exception as e:
-            logger.error(f"OneBotAdapter: 获取历史记录时出错: {e}")
-            return []
-
-        # 获取机器人自身的 ID，用于后续过滤
-        # 使用 set 来存储可能的 ID，增加容错性
+        # 2. 识别过滤名单与无效消息，预先构建“有效消息索引”
         black_list_ids = set()
         if hasattr(event, "self_id") and event.self_id:
             black_list_ids.add(str(event.self_id))
-
         bot_obj = getattr(event, "bot", None)
         if bot_obj:
             for attr in ["self_id", "qq", "user_id"]:
                 val = getattr(bot_obj, attr, None)
                 if val:
                     black_list_ids.add(str(val))
-
-        # 构建最终过滤名单
         black_list = set(self.filter_users) | black_list_ids
-        logger.debug(
-            f"[HistoryFetcher] Bot Self ID Detection: {black_list_ids}, Target: {target_user_id}"
-        )
 
-        # 处理并清理数据
-        dialogue_context = []
+        # 预过滤：既要不在黑名单，也要有实际内容（文本/回复/@等）
+        valid_indices = []
+        target_str_id = str(target_user_id)
+        for i, msg in enumerate(raw_pool):
+            sender_id = str(msg.get("sender", {}).get("user_id", ""))
 
-        for msg in raw_history:
-            sender = msg.get("sender", {})
-            sender_id = str(sender.get("user_id", ""))
-            nickname = sender.get("nickname", "Unknown")
-
-            # 1. 过滤掉黑名单中的用户 (机器人 or 用户手动配置的过滤对象)
-            if sender_id in black_list:
+            # 黑名单过滤 (除非是目标用户自己，哪怕他是机器人也分析他)
+            if sender_id in black_list and sender_id != target_str_id:
                 continue
 
-            # 2. 确定逻辑角色
-            role = "[Target]" if sender_id == str(target_user_id) else "[Other]"
-
-            # 获取内容 (简单的文本提取)
+            # 内容过滤
             content = self._extract_text(msg.get("message", ""))
-
             if not content:
                 continue
 
-            # 时间格式化
+            valid_indices.append(i)
+
+        # 3. 在有效消息中寻找“兴趣点” (Target 发言或被提及)
+        interest_positions = []  # 在 valid_indices 列表中的索引
+        for pos, original_idx in enumerate(valid_indices):
+            msg = raw_pool[original_idx]
+            sender_id = str(msg.get("sender", {}).get("user_id", ""))
+
+            if sender_id == target_str_id:
+                interest_positions.append(pos)
+            else:
+                interactions = self._extract_interactions(msg.get("message", []))
+                if target_str_id in interactions.get("at_list", []):
+                    interest_positions.append(pos)
+
+        # 4. 提取窗口并合并 (基于有效消息的位置)
+        window_size = self.config.get("context_window_size", 5)
+        selected_valid_positions = set()
+
+        for pos in interest_positions:
+            start = max(0, pos - window_size)
+            end = min(len(valid_indices), pos + window_size + 1)
+            for j in range(start, end):
+                selected_valid_positions.add(j)
+
+        # 5. 兜底策略：补齐到 history_count
+        if len(selected_valid_positions) < history_count:
+            # 从有效消息末尾向前补
+            for k in range(len(valid_indices) - 1, -1, -1):
+                if len(selected_valid_positions) >= history_count:
+                    break
+                selected_valid_positions.add(k)
+
+        # 6. 按时间顺序提取物理索引并格式化
+        final_valid_positions = sorted(selected_valid_positions)
+
+        # 结果可能仍超过 history_count (如果用户密集发言)，截断最近消息
+        if len(final_valid_positions) > history_count:
+            final_valid_positions = final_valid_positions[-history_count:]
+
+        dialogue_context = []
+        last_pos = -1
+
+        for pos in final_valid_positions:
+            original_idx = valid_indices[pos]
+
+            # 检测逻辑索引（在有效消息流中的位置）上的跳变 (说明由于窗口限制跳过了部分有效对话)
+            if last_pos != -1 and pos > last_pos + 1:
+                dialogue_context.append(
+                    {
+                        "time": "...",
+                        "role": "[System]",
+                        "nickname": "System",
+                        "content": "... (此处省略部分对话) ...",
+                    }
+                )
+
+            msg = raw_pool[original_idx]
+            sender = msg.get("sender", {})
+            sender_id = str(sender.get("user_id", ""))
+            nickname = sender.get("nickname", "Unknown")
+            role = "[Target]" if sender_id == target_str_id else "[Other]"
+            content = self._extract_text(msg.get("message", ""))
+
             ts = msg.get("time", time.time())
             time_str = time.strftime("%H:%M", time.localtime(ts))
 
@@ -183,6 +142,7 @@ class OneBotAdapter:
                     "content": content,
                 }
             )
+            last_pos = pos
 
         return dialogue_context
 
