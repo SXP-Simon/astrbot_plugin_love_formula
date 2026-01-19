@@ -1,5 +1,5 @@
 from datetime import date as DateType
-from typing import Optional
+
 from sqlmodel import Field, SQLModel
 
 

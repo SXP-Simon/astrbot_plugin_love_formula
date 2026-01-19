@@ -1,4 +1,5 @@
 from astrbot.api.event import AstrMessageEvent
+
 from .base import BaseCollector
 
 

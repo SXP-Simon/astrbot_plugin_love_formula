@@ -1,5 +1,5 @@
-from .base import BaseMetricEngine
 from ...models.tables import LoveDailyRef
+from .base import BaseMetricEngine
 
 
 class SimpEngine(BaseMetricEngine):

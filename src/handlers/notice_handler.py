@@ -1,8 +1,7 @@
-from astrbot.api import logger
-from ..persistence.repo import LoveRepo
+from ..analysis.collectors.ick_collector import IckCollector
 from ..analysis.collectors.simp_collector import SimpCollector
 from ..analysis.collectors.vibe_collector import VibeCollector
-from ..analysis.collectors.ick_collector import IckCollector
+from ..persistence.repo import LoveRepo
 
 
 class NoticeHandler:

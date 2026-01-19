@@ -1,9 +1,8 @@
 import asyncio
 import os
 import shutil
-import time
-from unittest.mock import MagicMock, AsyncMock
 import sys
+from unittest.mock import AsyncMock, MagicMock
 
 # Setup paths
 current_file = os.path.abspath(__file__)
@@ -27,7 +26,6 @@ if os.path.exists("/app") and "/app" not in sys.path:
     sys.path.insert(0, "/app")
 
 # Mock AstrBot modules BEFORE importing plugin
-from unittest.mock import MagicMock
 
 # 1. Mock LogManager
 mock_log = MagicMock()

@@ -1,7 +1,7 @@
 import asyncio
 import os
 import sys
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 # Setup Paths
 current_file = os.path.abspath(__file__)

@@ -1,5 +1,6 @@
 from astrbot.api.event import AstrMessageEvent
 from astrbot.core.message.components import Reply
+
 from .base import BaseCollector
 
 

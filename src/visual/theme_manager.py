@@ -1,6 +1,7 @@
 import os
+from typing import Any
+
 import yaml
-from typing import Dict, Any
 
 
 class ThemeManager:
@@ -12,7 +13,7 @@ class ThemeManager:
         self.current_theme = "galgame"
         self._cache = {}
 
-    def get_theme_config(self, theme_name: str = None) -> Dict[str, Any]:
+    def get_theme_config(self, theme_name: str = None) -> dict[str, Any]:
         """获取指定主题的配置信息 (从 config.yaml 读取)"""
         theme = theme_name or self.current_theme
         if theme in self._cache:
@@ -22,7 +23,7 @@ class ThemeManager:
         if not os.path.exists(config_path):
             raise ValueError(f"在 {config_path} 未找到主题 {theme}")
 
-        with open(config_path, "r", encoding="utf-8") as f:
+        with open(config_path, encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         self._cache[theme] = config
