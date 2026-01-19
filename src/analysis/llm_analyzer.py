@@ -130,6 +130,7 @@ class LLMAnalyzer:
             "reply_received": raw_data.get("reply_received", 0),
             "recall_count": raw_data.get("recall_count", 0),
             "context_text": context_text,
+            "max_evidence": self.config.get("max_evidence_scenes", 3),
         }
 
         # Get prompt template from config
@@ -142,7 +143,7 @@ class LLMAnalyzer:
         # Fallback default
         if not prompt_template:
             prompt_template = """
-你是一位洞察力极强的心理侧写师，擅长结合“行为数据”与“对话细节”捕捉人的真实心理状态。
+你是一位洞察力极强的心理侧写师，擅长结合“行为数据”与“对话细节”捕捉人的真实心理状态，并从对话中筛选出最具代表性的“呈堂证供”。
 请阅读以下【行为数据】与【群聊片段】，对标记为 [Target] 的用户进行深度侧写。
 
 【参考资料：行为数据】
@@ -167,10 +168,23 @@ class LLMAnalyzer:
 - 数据显示“纯爱值”高，且对话中他在 01:23 发言“晚安”却无人回复 -> 侧写重点应为“自我感动的独角戏”。
 - 数据显示“败犬值”高，且对话中他撤回了一条关于 ACG 的发言 -> 侧写重点应为“因过度在意评价而畏手畏脚”。
 
-请严格按以下格式输出 JSON 结构：
-[DEEP_PSYCHE]
-KEYWORDS: #关键词1 #关键词2 #关键词3
-ANALYSIS: 一段深度心理侧写。语气要冷静、透彻，引用具体细节，像是在撰写一份绝密的心理评估报告。
+请严格按以下格式输出 JSON 结构（EVIDENCE 部分请筛选 {max_evidence} 个最有代表性的对话片段）：
+{{
+    "DEEP_PSYCHE": {{
+        "KEYWORDS": ["#关键词1", "#关键词2", "#关键词3"],
+        "ANALYSIS": "一段深度心理侧写。语气要冷静、透彻，引用具体细节，像是在撰写一份绝密的心理评估报告。"
+    }},
+    "EVIDENCE": [
+        {{
+            "title": "证言一：(例如：强行解释)",
+            "reason": "简短说明为何选此段作为证据",
+            "dialogue": [
+                {{"role": "UserA", "content": "..."}},
+                {{"role": "Target", "content": "..."}}
+            ]
+        }}
+    ]
+}}
 """
 
         try:
@@ -196,7 +210,8 @@ ANALYSIS: 一段深度心理侧写。语气要冷静、透彻，引用具体细�
 
                 data_json = json.loads(clean_text)
 
-                # Handle structure: {"DEEP_PSYCHE": {"KEYWORDS": ..., "ANALYSIS": ...}}
+                # Handle structure: {"DEEP_PSYCHE": {"KEYWORDS": ..., "ANALYSIS": ...}, "EVIDENCE": ...}
+                result = {}
                 if "DEEP_PSYCHE" in data_json:
                     root = data_json["DEEP_PSYCHE"]
                     keywords_str = root.get("KEYWORDS", "")
@@ -214,14 +229,64 @@ ANALYSIS: 一段深度心理侧写。语气要冷静、透彻，引用具体细�
                     else:
                         keywords = []
 
-                    logger.info(f"LLM Deep Dive Generated (JSON): {analysis_str}")
-                    return {"keywords": keywords, "content": analysis_str}
+                    result = {"keywords": keywords, "content": analysis_str}
+                    logger.info(
+                        f"LLM Deep Dive Generated (JSON): {analysis_str[:50]}..."
+                    )
+
+                if "EVIDENCE" in data_json:
+                    evidence_list = data_json["EVIDENCE"]
+
+                    # Create nickname -> user_id map from chat_context
+                    # We also try to identify the Target user id
+                    user_map = {}
+                    target_uid = None
+                    for msg in chat_context:
+                        uid = msg.get("user_id")
+                        nick = msg.get("nickname")
+                        role = msg.get("role", "")
+                        if uid and nick:
+                            user_map[nick] = uid
+                        if role == "[Target]" and uid:
+                            target_uid = uid
+
+                    # Inject user_id into evidence dialogue
+                    for scene in evidence_list:
+                        for dialog in scene.get("dialogue", []):
+                            role_name = dialog.get("role", "")
+                            # Try exact match
+                            if role_name in user_map:
+                                dialog["user_id"] = user_map[role_name]
+                            # Try loose match (if part of string)
+                            elif role_name:
+                                for nick, uid in user_map.items():
+                                    if nick in role_name:
+                                        dialog["user_id"] = uid
+                                        break
+
+                            # Fallback for Target alias
+                            if not dialog.get("user_id") and target_uid:
+                                if (
+                                    "Target" in role_name
+                                    or "被告" in role_name
+                                    or "我" == role_name
+                                ):
+                                    dialog["user_id"] = target_uid
+
+                    result["evidence"] = evidence_list
+                    logger.info(
+                        f"LLM Evidence Generated: {len(result['evidence'])} scenes"
+                    )
+
+                return result
+
             except json.JSONDecodeError:
                 pass  # Fallback to text parsing
             except Exception as e:
                 logger.warning(f"JSON parsing failed, trying text parse: {e}")
 
             # Fallback: Text Parsing for [DEEP_PSYCHE] format
+            # Note: Evidence extraction is supported only in JSON mode for now
             parts = text.split("[DEEP_PSYCHE]")
             if len(parts) < 2:
                 # Try simple format if model ignored [DEEP_PSYCHE] tag
@@ -259,7 +324,7 @@ ANALYSIS: 一段深度心理侧写。语气要冷静、透彻，引用具体细�
 
             if keywords and analysis:
                 logger.info(f"LLM Deep Dive Generated (Text): {analysis}")
-                return {"keywords": keywords, "content": analysis}
+                return {"keywords": keywords, "content": analysis, "evidence": []}
 
             return None
         except Exception as e:

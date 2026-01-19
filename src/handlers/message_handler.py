@@ -52,7 +52,7 @@ class MessageHandler:
 
         # 更新判定指标 (Topic/Repeat)
         if nos_m["topic_inc"] > 0 or ick_m["repeat_inc"] > 0:
-            await self.repo.update_v2_stats(
+            await self.repo.update_behavior_stats(
                 group_id, user_id, nos_m["topic_inc"], ick_m["repeat_inc"]
             )
 

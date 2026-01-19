@@ -156,6 +156,7 @@ class OneBotAdapter:
                     "time": time_str,
                     "role": role,
                     "nickname": nickname,
+                    "user_id": sender_id,
                     "content": content,
                 }
             )

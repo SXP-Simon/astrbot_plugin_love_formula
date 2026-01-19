@@ -426,26 +426,13 @@
             border: 2px solid #ffe3e3;
         }
 
-        .deep-dive-card::after {
-            content: "SOUL ECHO";
-            position: absolute;
-            right: -10px;
-            bottom: -25px;
-            font-size: 5rem;
-            font-weight: 900;
-            color: rgba(255, 107, 129, 0.05);
-            transform: rotate(-5deg);
-            pointer-events: none;
-            font-family: sans-serif;
-            letter-spacing: 5px;
-        }
 
         .dd-header {
             display: flex;
             align-items: center;
             gap: 12px;
             margin-bottom: 20px;
-            border-bottom: 2px dashed rgba(255, 107, 129, 0.2);
+            border-bottom: 2px dashed rgba(var(--primary-color), 0.2);
             padding-bottom: 15px;
         }
 
@@ -486,6 +473,187 @@
             border-radius: 12px;
             padding: 15px;
             border-left: 4px solid var(--secondary-color);
+        }
+
+        /* Evidence Section - Premium Redesign */
+        .evidence-card {
+            background: linear-gradient(145deg, #ffffff, #fff5f7);
+            border-radius: 28px;
+            padding: 30px;
+            margin-top: 25px;
+            box-shadow: 0 15px 40px rgba(108, 92, 231, 0.08);
+            background: linear-gradient(135deg, #fff9fa 0%, #fff0f5 100%);
+            border-radius: 24px;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(255, 107, 129, 0.15);
+            border: 2px solid #ffe3e3;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .evidence-card::after {
+            content: "EVIDENCE";
+            position: absolute;
+            right: -10px;
+            bottom: -25px;
+            font-size: 5rem;
+            font-weight: 900;
+            color: rgba(255, 107, 129, 0.05);
+            transform: rotate(-5deg);
+            pointer-events: none;
+            font-family: sans-serif;
+            letter-spacing: 5px;
+            top: auto;
+        }
+
+        /* Reset previous pseudo-element */
+        .evidence-card::before {
+            display: none;
+        }
+
+        .evidence-list {
+            position: relative;
+            z-index: 1;
+        }
+
+        .evidence-item {
+            margin-bottom: 25px;
+            background: #fff;
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px dashed rgba(255, 107, 129, 0.3);
+            box-shadow: 0 2px 10px rgba(255, 107, 129, 0.05);
+        }
+
+        .evidence-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .evidence-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            border-bottom: 1px dashed #ffe3e3;
+            padding-bottom: 8px;
+        }
+
+        .evidence-badge {
+            background: var(--primary-color);
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: normal;
+            font-family: 'ZCOOL KuaiLe', cursive;
+            box-shadow: 0 2px 6px rgba(255, 107, 129, 0.2);
+        }
+
+        .evidence-title {
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+
+        .evidence-reason {
+            font-size: 0.95rem;
+            color: #666;
+            margin-bottom: 15px;
+            padding: 8px 12px;
+            background: rgba(255, 239, 239, 0.5);
+            border-radius: 10px;
+            line-height: 1.6;
+            font-style: italic;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            padding: 15px;
+            background: #fffcfc;
+            border-radius: 14px;
+            border: 1px solid #ffe3e3;
+        }
+
+        .chat-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .chat-right {
+            flex-direction: row-reverse;
+        }
+
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid #fff;
+            box-shadow: 0 3px 6px rgba(255, 107, 129, 0.15);
+            object-fit: cover;
+        }
+
+        .chat-content-box {
+            display: flex;
+            flex-direction: column;
+            max-width: 75%;
+        }
+
+        .chat-name {
+            font-size: 0.8rem;
+            color: #ff9eb5;
+            margin-bottom: 4px;
+            margin-left: 6px;
+            font-family: 'ZCOOL KuaiLe', cursive;
+        }
+
+        .chat-right .chat-name {
+            text-align: right;
+            margin-right: 6px;
+            margin-left: 0;
+            color: var(--primary-color);
+        }
+
+        .chat-bubble {
+            padding: 10px 15px;
+            border-radius: 18px;
+            box-shadow: 0 2px 5px rgba(255, 107, 129, 0.05);
+            position: relative;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            word-break: break-word;
+            font-family: 'Noto Sans SC', sans-serif;
+        }
+
+        .chat-left .chat-bubble {
+            background: #fff;
+            color: #555;
+            border: 1px solid #fff0f3;
+            border-top-left-radius: 4px;
+        }
+
+        .chat-right .chat-bubble {
+            background: linear-gradient(135deg, #ff9eb5 0%, #ff6b81 100%);
+            color: #fff;
+            border-top-right-radius: 4px;
+            box-shadow: 0 4px 12px rgba(255, 107, 129, 0.2);
+        }
+
+        .chat-content {
+            /* Handled by bubble */
+        }
+
+        /*
+        .chat-left .chat-bubble::before { ... }
+        .chat-right .chat-bubble::before { ... }
+        */
+
+        .chat-content {
+            /* Handled by bubble */
         }
     </style>
 </head>
@@ -577,6 +745,51 @@
             {% endif %}
 
             {% if data.deep_dive %}
+            <!-- Evidence Section -->
+            {% if data.deep_dive.evidence %}
+            <div class="evidence-card" style="grid-column: span 2;">
+                <div class="dd-header" style="border-bottom-color: rgba(var(--primary-color), 0.2);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color)"
+                        stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    <span class="dd-title" style="color: var(--primary-color);">呈堂证供 (Court Evidence)</span>
+                </div>
+
+                <div class="evidence-list">
+                    {% for scene in data.deep_dive.evidence %}
+                    <div class="evidence-item">
+                        <div class="evidence-meta">
+                            <span class="evidence-badge">EXHIBIT {{ loop.index }}</span>
+                            <span class="evidence-title">{{ scene.title }}</span>
+                        </div>
+                        <div class="evidence-reason">{{ scene.reason }}</div>
+                        <div class="chat-container">
+                            {% for msg in scene.dialogue %}
+                            <div
+                                class="chat-row {% if msg.role == 'Target' or msg.user_id == data.user_id %}chat-right{% else %}chat-left{% endif %}">
+                                <img src="{{ msg.avatar_url }}" class="chat-avatar"
+                                    onerror="this.src='https://api.multiavatar.com/default.png'">
+
+                                <div class="chat-content-box">
+                                    <div class="chat-name">{{ msg.role }}</div>
+                                    <div class="chat-bubble">
+                                        <div class="chat-content">{{ msg.content }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <div class="deep-dive-card" style="grid-column: span 2;">
                 <div class="dd-header">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff7675" stroke-width="2">

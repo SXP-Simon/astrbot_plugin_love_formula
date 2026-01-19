@@ -104,10 +104,10 @@ class LoveRepo:
             record.updated_at = time.time()
             session.add(record)
 
-    async def update_v2_stats(
+    async def update_behavior_stats(
         self, group_id: str, user_id: str, topic_inc: int = 0, repeat_inc: int = 0
     ):
-        """更新 V2 引擎特有指标"""
+        """更新高级行为指标 (话题、复读)"""
         async with self.db.get_session() as session:
             record = await self.get_or_create_daily_ref(session, group_id, user_id)
             record.topic_count += topic_inc

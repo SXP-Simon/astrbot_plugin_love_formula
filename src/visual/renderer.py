@@ -23,6 +23,35 @@ class LoveRenderer:
         """
         logger.info(f"开始渲染图片，主题: {theme_name}")
 
+        # Process evidence avatars if present
+        if data.get("deep_dive") and data["deep_dive"].get("evidence"):
+            import aiohttp
+            import base64
+
+            async with aiohttp.ClientSession() as session:
+                for scene in data["deep_dive"]["evidence"]:
+                    for dialog in scene.get("dialogue", []):
+                        uid = dialog.get("user_id")
+                        if uid:
+                            # Fetch avatar
+                            try:
+                                url = f"https://q4.qlogo.cn/headimg_dl?dst_uin={uid}&spec=100"
+                                async with session.get(url, timeout=5) as resp:
+                                    if resp.status == 200:
+                                        content = await resp.read()
+                                        b64 = base64.b64encode(content).decode()
+                                        dialog["avatar_url"] = (
+                                            f"data:image/jpeg;base64,{b64}"
+                                        )
+                            except Exception as e:
+                                logger.warning(f"Failed to fetch avatar for {uid}: {e}")
+
+                        # Fallback avatar if fetch failed or no uid
+                        if not dialog.get("avatar_url"):
+                            dialog["avatar_url"] = (
+                                "https://api.multiavatar.com/default.png"
+                            )
+
         # 1. 加载模板
         template_name = f"{theme_name}/template.html"
         try:
