@@ -4,7 +4,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.tables import LoveDailyRef, MessageOwnerIndex
+from ..models.tables import LoveDailyRef, MessageOwnerIndex, UserCooldown
 from .database import DBManager
 
 
@@ -169,3 +169,21 @@ class LoveRepo:
                     ref.updated_at = time.time()
                     honor_count += 1
         return honor_count
+
+    async def check_and_update_cooldown(self, user_id: str, cooldown_sec: int) -> int:
+        """检查并更新冷却时间。返回 0 表示通过并已更新；返回正数表示剩余秒数"""
+        now = time.time()
+        async with self.db.get_session() as session:
+            stmt = select(UserCooldown).where(UserCooldown.user_id == user_id)
+            result = await session.execute(stmt)
+            record = result.scalar_one_or_none()
+
+            if record:
+                if now - record.last_rate_at < cooldown_sec:
+                    return int(cooldown_sec - (now - record.last_rate_at))
+                record.last_rate_at = now
+            else:
+                record = UserCooldown(user_id=user_id, last_rate_at=now)
+
+            session.add(record)
+            return 0

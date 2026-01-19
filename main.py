@@ -79,7 +79,7 @@ class LoveFormulaPlugin(Star):
         self.calculator = LoveCalculator()
         self.classifier = ArchetypeClassifier()
 
-    async def init(self):
+    async def initialize(self):
         """AstrBot 调用的异步初始化方法"""
         await self.db_mgr.init_db()
         logger.info("LoveFormula DB initialized.")
@@ -109,7 +109,24 @@ class LoveFormulaPlugin(Star):
     async def cmd_love_profile(self, event: AstrMessageEvent):
         """生成每日恋爱成分分析报告"""
         group_id = event.message_obj.group_id
-        user_id = event.message_obj.sender.user_id
+        sender_id = event.message_obj.sender.user_id
+
+        # 0. 指令节流 (按发送者 ID)
+        cooldown_sec = self.config.get("command_cooldown", 60)
+        if cooldown_sec > 0 and group_id:
+            remaining = await self.repo.check_and_update_cooldown(
+                sender_id, cooldown_sec
+            )
+            if remaining > 0:
+                yield event.plain_result(
+                    f"☕ 稍安勿躁，分析仪正在冷却中... (剩余 {remaining} 秒)"
+                )
+                return
+
+        # 提示正在生成
+        yield event.plain_result("☕ 正在调取卷宗并进行赛博心理剖析，请稍候...")
+
+        user_id = sender_id
         nickname = event.message_obj.sender.nickname
 
         # 0. 检查是否为指定分析（被 at 的人）

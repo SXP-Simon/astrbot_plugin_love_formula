@@ -47,3 +47,13 @@ class MessageOwnerIndex(SQLModel, table=True):
     user_id: str
     group_id: str
     timestamp: float  # 时间戳
+
+
+class UserCooldown(SQLModel, table=True):
+    """用户指令触发冷却记录"""
+
+    __tablename__ = "user_cooldown"
+    __table_args__ = {"extend_existing": True}
+
+    user_id: str = Field(primary_key=True)
+    last_rate_at: float = Field(default=0.0)

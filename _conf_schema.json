@@ -21,6 +21,12 @@
         "default": 3,
         "hint": "用户当日发送消息少于此数量时，显示“路人甲/未启动”状态。"
     },
+    "command_cooldown": {
+        "type": "int",
+        "description": "指令触发冷却(秒)",
+        "default": 600,
+        "hint": "同一个人在短时间内多次触发“今日人设”指令的间隔时间。"
+    },
     "filter_users": {
         "type": "list",
         "title": "过滤用户 ID 列表",
