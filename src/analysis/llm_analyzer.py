@@ -1,4 +1,6 @@
 import json
+import re
+
 from astrbot.api import logger
 from astrbot.core.star.context import Context
 
@@ -97,6 +99,86 @@ class LLMAnalyzer:
             logger.error(f"LLM Commentary failed: {e}")
             return {"comment": "LLM 暂时无法处理，请稍后再试。", "diagnostics": []}
 
+    def _repair_json(self, text: str) -> str:
+        """Attempts to repair common LLM JSON syntax errors."""
+
+        # 1. Fix unquoted hashtags: #tag -> "#tag"
+        # Only match hashtags that are not already inside quotes.
+        # This regex matches # followed by non-space/non-end-bracket characters.
+        text = re.sub(
+            r'(?<!["\'])(#[a-zA-Z0-9_\u4e00-\u9fa5]+)(?!["\'])', r'"\1"', text
+        )
+
+        # 2. Fix trailing commas
+        text = re.sub(r",\s*([\]\}])", r"\1", text)
+
+        return text
+
+    def _reconstruct_from_regex(self, text: str) -> dict | None:
+        """Heuristic extraction of deep dive data using regex fallback."""
+        # 1. Keywords
+        kw_match = re.search(
+            r'(?:KEYWORDS|keywords)["\']?\s*[:：]\s*[\[\(]?([^\]\)]+)[\]\)]?',
+            text,
+            re.IGNORECASE,
+        )
+        keywords = []
+        if kw_match:
+            keywords = re.findall(r'#([^\s,，"\'\]\}]+)', kw_match.group(1))
+            keywords = [f"#{k}" for k in keywords]
+
+        # 2. Analysis
+        ana_match = re.search(
+            r'(?:ANALYSIS|analysis)["\']?\s*[:：]\s*["\']?(.*?)(?:["\']?\s*[,，]?\s*(?:"|EVIDENCE|evidence)|$)',
+            text,
+            re.IGNORECASE | re.DOTALL,
+        )
+        analysis = ""
+        if ana_match:
+            analysis = ana_match.group(1).strip().strip('",')
+
+        # 3. Evidence
+        evidence = []
+        # Try to find scenes using title and dialogue patterns
+        scenes = re.finditer(
+            r'(?:title|TITLE)["\']?\s*[:：]\s*["\']?([^"\',]+)["\']?.*?dialogue["\']?\s*[:：]\s*\[(.*?)\]',
+            text,
+            re.DOTALL | re.IGNORECASE,
+        )
+        for scene_match in scenes:
+            title = scene_match.group(1).strip().strip('",')
+            diag_blob = scene_match.group(2)
+            dialogue = []
+            # Improved dialogue entry extraction
+            # Matches: {"role": "...", "content": "..."}
+            diag_entries = re.finditer(
+                r'\{[^{}]*?"role"\s*:\s*["\']?([^"\',]+)["\']?\s*,\s*"content"\s*:\s*["\']?([^"\}]+)["\']?\s*\}',
+                diag_blob,
+                re.DOTALL,
+            )
+            for d_match in diag_entries:
+                role = d_match.group(1).strip().strip('", ')
+                content = d_match.group(2).strip().strip('", ')
+                dialogue.append(
+                    {
+                        "role": role,
+                        "content": content,
+                    }
+                )
+
+            if dialogue:
+                evidence.append(
+                    {
+                        "title": title,
+                        "reason": "由正则表达式兜底提取 (Regex Fallback)",
+                        "dialogue": dialogue,
+                    }
+                )
+
+        if keywords or analysis or evidence:
+            return {"keywords": keywords, "content": analysis, "evidence": evidence}
+        return None
+
     async def generate_deep_dive(
         self,
         scores: dict,
@@ -179,13 +261,14 @@ class LLMAnalyzer:
             "title": "证言一：(例如：强行解释)",
             "reason": "简短说明为何选此段作为证据",
             "dialogue": [
-                {{"role": "UserA", "content": "..."}},
-                {{"role": "Target", "content": "..."}}
+                {{"role": "对话者的真实昵称", "content": "对话内容..."}},
+                {{"role": "[Target]", "content": "目标用户的回应..."}}
             ]
         }}
     ]
 }}
-**必须包含 DEEP_PSYCHE 和 EVIDENCE 两个一级 Key。EVIDENCE 数组不能为空，若无明显特征，请选取最近一次交互作为样本分析。**
+**必须包含 DEEP_PSYCHE 和 EVIDENCE 两个一级 Key。EVIDENCE 数组不能为空。**
+**重要：role 必须使用上述聊天记录中出现的真实 [nickname] 或 '[Target]'，严禁使用 UserA/UserB 等占位符。内容必须摘录自原始记录。**
 """
 
         try:
@@ -202,13 +285,29 @@ class LLMAnalyzer:
 
             # Try parsing as JSON first (robust handling)
             try:
-                # Remove markdown code blocks if present
-                clean_text = text.strip()
-                if clean_text.startswith("```"):
-                    clean_text = clean_text.strip("`")
-                    if clean_text.startswith("json"):
-                        clean_text = clean_text[4:]
+                logger.debug(f"Raw LLM Deep Dive Response: {text}")
 
+                # Robust JSON Cleaner
+                clean_text = text.strip()
+
+                # 1. Remove Markdown Code Blocks
+                if "```" in clean_text:
+                    # Find the first opening brace after the first backtick block start
+                    start_idx = clean_text.find("{")
+                    end_idx = clean_text.rfind("}")
+                    if start_idx != -1 and end_idx != -1:
+                        clean_text = clean_text[start_idx : end_idx + 1]
+                else:
+                    # If no code blocks, look for the outer braces
+                    start_idx = clean_text.find("{")
+                    end_idx = clean_text.rfind("}")
+                    if start_idx != -1 and end_idx != -1:
+                        clean_text = clean_text[start_idx : end_idx + 1]
+
+                # 2. Repair common JSON errors
+                clean_text = self._repair_json(clean_text)
+
+                logger.debug(f"Repaired JSON Text: {clean_text}")
                 data_json = json.loads(clean_text)
 
                 # Handle structure: {"DEEP_PSYCHE": {"KEYWORDS": ..., "ANALYSIS": ...}, "EVIDENCE": ...}
@@ -245,34 +344,45 @@ class LLMAnalyzer:
                     for msg in chat_context:
                         uid = msg.get("user_id")
                         nick = msg.get("nickname")
-                        role = msg.get("role", "")
-                        if uid and nick:
-                            user_map[nick] = uid
-                        if role == "[Target]" and uid:
+                        role_tag = msg.get("role", "")
+                        if uid:
+                            if nick:
+                                user_map[nick.lower()] = uid
+                            # Also map role indicators
+                            user_map[str(uid)] = uid
+                        if role_tag == "[Target]" and uid:
                             target_uid = uid
 
                     # Inject user_id into evidence dialogue
                     for scene in evidence_list:
                         for dialog in scene.get("dialogue", []):
-                            role_name = dialog.get("role", "")
-                            # Try exact match
+                            role_name = str(dialog.get("role", "")).lower()
+                            # Priority 1: Target alias
+                            if (
+                                "target" in role_name
+                                or "被告" in role_name
+                                or "我" == role_name
+                            ) and target_uid:
+                                dialog["user_id"] = target_uid
+                                continue
+
+                            # Priority 2: Exact match in map
                             if role_name in user_map:
                                 dialog["user_id"] = user_map[role_name]
-                            # Try loose match (if part of string)
-                            elif role_name:
-                                for nick, uid in user_map.items():
-                                    if nick in role_name:
-                                        dialog["user_id"] = uid
-                                        break
+                                continue
 
-                            # Fallback for Target alias
-                            if not dialog.get("user_id") and target_uid:
-                                if (
-                                    "Target" in role_name
-                                    or "被告" in role_name
-                                    or "我" == role_name
-                                ):
-                                    dialog["user_id"] = target_uid
+                            # Priority 3: Loose match (contains nick or uid)
+                            found_loose = False
+                            for nick_lower, uid in user_map.items():
+                                if nick_lower in role_name or role_name in nick_lower:
+                                    dialog["user_id"] = uid
+                                    found_loose = True
+                                    break
+
+                            if not found_loose:
+                                logger.debug(
+                                    f"Could not map role '{role_name}' to any UID"
+                                )
 
                     result["evidence"] = evidence_list
                     logger.info(
@@ -286,48 +396,45 @@ class LLMAnalyzer:
             except Exception as e:
                 logger.warning(f"JSON parsing failed, trying text parse: {e}")
 
-            # Fallback: Text Parsing for [DEEP_PSYCHE] format
-            # Note: Evidence extraction is supported only in JSON mode for now
-            parts = text.split("[DEEP_PSYCHE]")
-            if len(parts) < 2:
-                # Try simple format if model ignored [DEEP_PSYCHE] tag
-                if "KEYWORDS:" in text and "ANALYSIS:" in text:
-                    raw_content = text
-                else:
-                    return None
-            else:
-                raw_content = parts[1].strip()
+            # Fallback: Text Parsing (Lexical/Regex extraction)
+            logger.info("Falling back to Lexical/Regex extraction for deep dive.")
+            result = self._reconstruct_from_regex(text)
+            if not result:
+                return None
 
-            lines = raw_content.split("\n")
+            # Apply mapping to evidence if found in regex fallback
+            if result.get("evidence"):
+                user_map = {}
+                target_uid = None
+                for msg in chat_context:
+                    uid = msg.get("user_id")
+                    nick = msg.get("nickname")
+                    role_tag = msg.get("role", "")
+                    if uid:
+                        if nick:
+                            user_map[nick.lower()] = uid
+                        user_map[str(uid)] = uid
+                    if role_tag == "[Target]" and uid:
+                        target_uid = uid
 
-            keywords = []
-            analysis = ""
-
-            for line in lines:
-                line = line.strip()
-                if not line:
-                    continue
-
-                if line.upper().startswith("KEYWORDS"):
-                    # Handle "KEYWORDS: #tag1" or "KEYWORDS": "#tag1" (pseudo-json)
-                    content_part = line.split(":", 1)[1].strip()
-                    # Strip quotes if pseudo-json
-                    content_part = content_part.strip('",')
-                    tags = content_part.split(" ")
-                    keywords = [t.strip() for t in tags if t.strip().startswith("#")]
-                elif line.upper().startswith("ANALYSIS"):
-                    content_part = line.split(":", 1)[1].strip()
-                    analysis = content_part.strip('",')
-                elif analysis:
-                    # Append continuation lines to analysis
-                    clean_line = line.strip('",')
-                    analysis += " " + clean_line
-
-            if keywords and analysis:
-                logger.info(f"LLM Deep Dive Generated (Text): {analysis}")
-                return {"keywords": keywords, "content": analysis, "evidence": []}
-
-            return None
+                for scene in result["evidence"]:
+                    for dialog in scene.get("dialogue", []):
+                        role_name = str(dialog.get("role", "")).lower()
+                        if (
+                            "target" in role_name
+                            or "被告" in role_name
+                            or "我" == role_name
+                        ) and target_uid:
+                            dialog["user_id"] = target_uid
+                            continue
+                        if role_name in user_map:
+                            dialog["user_id"] = user_map[role_name]
+                            continue
+                        for nick_lower, uid in user_map.items():
+                            if nick_lower in role_name or role_name in nick_lower:
+                                dialog["user_id"] = uid
+                                break
+            return result
         except Exception as e:
             logger.error(f"LLM Deep Dive failed: {e}")
             return None

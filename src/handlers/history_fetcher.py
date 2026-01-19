@@ -14,6 +14,7 @@ class OneBotAdapter:
         self.context = context
         self.config = config
         self.history_count = config.get("analyze_history_count", 50)
+        self.filter_users = [str(u) for u in config.get("filter_users", [])]
 
     async def fetch_context(
         self, event: AstrMessageEvent, target_user_id: str
@@ -129,6 +130,25 @@ class OneBotAdapter:
             logger.error(f"OneBotAdapter: 获取历史记录时出错: {e}")
             return []
 
+        # 获取机器人自身的 ID，用于后续过滤
+        # 使用 set 来存储可能的 ID，增加容错性
+        black_list_ids = set()
+        if hasattr(event, "self_id") and event.self_id:
+            black_list_ids.add(str(event.self_id))
+
+        bot = getattr(event, "bot", None)
+        if bot:
+            for attr in ["self_id", "qq", "user_id"]:
+                val = getattr(bot, attr, None)
+                if val:
+                    black_list_ids.add(str(val))
+
+        # 构建最终过滤名单
+        black_list = set(self.filter_users) | black_list_ids
+        logger.debug(
+            f"[HistoryFetcher] Bot Self ID Detection: {black_list_ids}, Target: {target_user_id}"
+        )
+
         # 处理并清理数据
         dialogue_context = []
 
@@ -137,7 +157,11 @@ class OneBotAdapter:
             sender_id = str(sender.get("user_id", ""))
             nickname = sender.get("nickname", "Unknown")
 
-            # 确定逻辑角色
+            # 1. 过滤掉黑名单中的用户 (机器人 or 用户手动配置的过滤对象)
+            if sender_id in black_list:
+                continue
+
+            # 2. 确定逻辑角色
             role = "[Target]" if sender_id == str(target_user_id) else "[Other]"
 
             # 获取内容 (简单的文本提取)

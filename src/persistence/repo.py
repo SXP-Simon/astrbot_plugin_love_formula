@@ -1,6 +1,5 @@
-from datetime import date
 import time
-from typing import Optional
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -61,7 +60,7 @@ class LoveRepo:
             )
             session.add(idx)
 
-    async def get_message_owner(self, message_id: str) -> Optional[MessageOwnerIndex]:
+    async def get_message_owner(self, message_id: str) -> MessageOwnerIndex | None:
         async with self.db.get_session() as session:
             stmt = select(MessageOwnerIndex).where(
                 MessageOwnerIndex.message_id == message_id

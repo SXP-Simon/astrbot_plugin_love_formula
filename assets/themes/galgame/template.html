@@ -5,12 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Love Formula Analysis</title>
-    <style>
+    <!-- External resources commented out to prevent rendering timeout (30s limit) -->
+    <!-- <style>
         @import url('https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
-
-        /* KaTeX */
         @import url('https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css');
+    </style> -->
+    <style>
+        /* System font fallback */
+        :root {
+            --font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        }
 
         :root {
             --primary-color: #ff6b81;
@@ -24,7 +29,7 @@
             margin: 0;
             padding: 30px 0;
             background: linear-gradient(135deg, #fce38a 0%, #f38181 100%);
-            font-family: 'Noto Sans SC', sans-serif;
+            font-family: var(--font-family);
             color: var(--text-color);
             width: 100%;
             min-height: 100vh;
@@ -46,7 +51,7 @@
         }
 
         .header {
-            background-image: url('{{ asset_dir }}/header_bg.png');
+            background-image: url('{{ header_bg }}');
             background-size: cover;
             background-position: center;
             height: 180px;
@@ -105,7 +110,7 @@
             border-radius: 20px;
             font-size: 1rem;
             display: inline-block;
-            font-family: 'ZCOOL KuaiLe', cursive;
+            font-family: var(--font-family);
             box-shadow: 0 3px 6px rgba(255, 71, 87, 0.3);
         }
 
@@ -147,7 +152,7 @@
 
         .score-value {
             font-size: 5.5rem;
-            font-family: 'ZCOOL KuaiLe', cursive;
+            font-family: var(--font-family);
             color: var(--primary-color);
             line-height: 1;
             margin: 15px 0;
@@ -322,8 +327,15 @@
         }
 
         .eq-val {
-            font-size: 1.6rem;
+            font-size: 1.8rem;
             color: var(--primary-color);
+            font-family: serif;
+            font-style: italic;
+        }
+
+        .eq-val b,
+        .eq-val span {
+            font-style: normal;
         }
 
         /* Deep Dive Section */
@@ -644,16 +656,7 @@
         }
 
         .chat-content {
-            /* Handled by bubble */
-        }
-
-        /*
-        .chat-left .chat-bubble::before { ... }
-        .chat-right .chat-bubble::before { ... }
-        */
-
-        .chat-content {
-            /* Handled by bubble */
+            white-space: pre-wrap;
         }
     </style>
 </head>
@@ -662,8 +665,7 @@
     <div class="card">
         <div class="header">
             <div class="user-info">
-                <img src="{{ data.avatar_url }}" alt="Avatar" class="avatar"
-                    onerror="this.src='https://api.multiavatar.com/default.png'">
+                <img src="{{ data.avatar_url }}" alt="Avatar" class="avatar">
                 <div class="title-group">
                     <div class="user-name">{{ data.user_name }}</div>
                     <div class="user-title">{{ data.title }}</div>
@@ -688,7 +690,7 @@
                 </div>
 
                 <div class="comment-box markdown-body">
-                    {{ data.comment }}
+                    {{ data.comment | safe }}
                 </div>
             </div>
 
@@ -740,7 +742,7 @@
             {% if data.equation %}
             <div class="equation-box" style="grid-column: span 2;">
                 <div class="eq-label">演化算式 (Evolution Equation)</div>
-                <div class="eq-val">${{ data.equation }}$</div>
+                <div class="eq-val">{{ data.equation }}</div>
             </div>
             {% endif %}
 
@@ -772,8 +774,7 @@
                             {% for msg in scene.dialogue %}
                             <div
                                 class="chat-row {% if msg.role == 'Target' or msg.user_id == data.user_id %}chat-right{% else %}chat-left{% endif %}">
-                                <img src="{{ msg.avatar_url }}" class="chat-avatar"
-                                    onerror="this.src='https://api.multiavatar.com/default.png'">
+                                <img src="{{ msg.avatar_url }}" class="chat-avatar">
 
                                 <div class="chat-content-box">
                                     <div class="chat-name">{{ msg.role }}</div>
@@ -805,7 +806,7 @@
                         {% endfor %}
                     </div>
                     <div class="dd-text markdown-body">
-                        {{ data.deep_dive.content }}
+                        {{ data.deep_dive.content | safe }}
                     </div>
                 </div>
             </div>
@@ -820,7 +821,7 @@
                     社交行为诊断报告 (Behavioral Diagnosis)
                 </div>
                 {% for item in data.logic_insights %}
-                <div class="diag-item markdown-body">{{ item }}</div>
+                <div class="diag-item markdown-body">{{ item | safe }}</div>
                 {% endfor %}
                 <div style="font-size: 0.75rem; color: #999; margin-top: 15px; font-style: italic; text-align: right;">
                     ※ 建议：保持真实的社交节奏，数据仅供娱乐
@@ -834,25 +835,14 @@
         </div>
     </div>
 
+    <!-- 
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    -->
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            // Render Markdown
-            const mdElements = document.querySelectorAll('.markdown-body');
-            mdElements.forEach(el => {
-                el.innerHTML = marked.parse(el.innerText);
-            });
-
-            // Render LaTeX
-            renderMathInElement(document.body, {
-                delimiters: [
-                    { left: '$$', right: '$$', display: true },
-                    { left: '$', right: '$', display: false }
-                ],
-                throwOnError: false
-            });
+            // Pre-rendered from Python side for performance/offline compatibility
         });
     </script>
 </body>

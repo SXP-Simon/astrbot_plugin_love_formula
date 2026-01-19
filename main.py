@@ -4,19 +4,16 @@ from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.event.filter import CustomFilter, EventMessageType
 from astrbot.core.config import AstrBotConfig
+from astrbot.core.message.components import At, Image
 from astrbot.core.star import Star
 from astrbot.core.star.context import Context
-from astrbot.core.message.components import (
-    At,
-    Image,
-)  # Moved from within cmd_love_profile
 
 from .src.analysis.calculator import LoveCalculator
 from .src.analysis.classifier import ArchetypeClassifier
 from .src.analysis.llm_analyzer import LLMAnalyzer
+from .src.handlers.history_fetcher import OneBotAdapter
 from .src.handlers.message_handler import MessageHandler
 from .src.handlers.notice_handler import NoticeHandler
-from .src.handlers.history_fetcher import OneBotAdapter
 from .src.persistence.database import DBManager
 from .src.persistence.repo import LoveRepo
 from .src.visual.renderer import LoveRenderer
@@ -244,12 +241,6 @@ class LoveFormulaPlugin(Star):
         except Exception as e:
             logger.error(f"Render failed: {e}", exc_info=True)
             yield event.plain_result(f"生成失败: {e}")
-
-    def _construct_latex_equation(self, scores: dict, raw: dict) -> str:
-        """构造 LaTeX 数学公式"""
-        # S = (msg * 1.0 + poke * 2.0 + avg_len * 0.05)
-        # V = (reply * 3.0 + reaction * 2.0 + poke_recv * 2.0)
-        # I = (recall * 5.0)
 
     def _construct_latex_equation(self, scores: dict, raw_data: dict) -> str:
         """根据公式生成 LaTeX 字符串"""
