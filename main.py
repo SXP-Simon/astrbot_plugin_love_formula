@@ -81,6 +81,9 @@ class LoveFormulaPlugin(Star):
     @filter.event_message_type(EventMessageType.GROUP_MESSAGE)
     async def on_group_message(self, event: AstrMessageEvent):
         """处理群消息监听"""
+        if not self._is_group_allowed(event.message_obj.group_id):
+            return
+
         logger.debug(
             f"[LoveFormula] on_group_message 触发: {event.message_obj.message_id}"
         )
@@ -125,6 +128,9 @@ class LoveFormulaPlugin(Star):
             return
 
         # 1. 获取数据
+        if not self._is_group_allowed(group_id):
+            yield event.plain_result("此群未启用恋爱分析功能。")
+            return
 
         daily_data = await self.repo.get_today_data(group_id, user_id)
 
@@ -155,11 +161,18 @@ class LoveFormulaPlugin(Star):
         raw_data_dict = daily_data.model_dump()
 
         if self.config.get("enable_llm_commentary", True):
-            provider_id = self.config.get("llm_provider_id", "")
+            # 获取对应的 Provider ID
+            global_provider = self.config.get("llm_provider_id", "")
+            commentary_provider = (
+                self.config.get("commentary_provider_id", "") or global_provider
+            )
+            deep_dive_provider = (
+                self.config.get("deep_dive_provider_id", "") or global_provider
+            )
 
             # 4.1 Basic Commentary (No Context)
             llm_result = await self.llm.generate_commentary(
-                scores, archetype_name, raw_data_dict, provider_id=provider_id
+                scores, archetype_name, raw_data_dict, provider_id=commentary_provider
             )
 
             # 4.2 Deep Dive (Context Driven)
@@ -174,7 +187,7 @@ class LoveFormulaPlugin(Star):
                             archetype_name,
                             raw_data_dict,
                             chat_context,
-                            provider_id=provider_id,
+                            provider_id=deep_dive_provider,
                         )
                 except Exception as e:
                     logger.warning(f"Failed to fetch/analyze chat history: {e}")
@@ -318,3 +331,22 @@ class LoveFormulaPlugin(Star):
             "NORMAL": "各项指标分布极其平庸，没有能够引起本庭注意的闪光点或污点，老老实实做个普通路人吧。",
         }
         return reasons.get(key, "数据分布符合该人设的特征判定区间。")
+
+    def _is_group_allowed(self, group_id: int | str | None) -> bool:
+        """检查群组是否在黑白名单允许范围内"""
+        if not group_id:
+            return True  # 私聊通常不限制，或者由其他逻辑处理
+
+        mode = self.config.get("group_list_mode", "none")
+        if mode == "none":
+            return True
+
+        group_list = self.config.get("group_list", [])
+        group_id_str = str(group_id)
+
+        if mode == "whitelist":
+            return group_id_str in group_list
+        if mode == "blacklist":
+            return group_id_str not in group_list
+
+        return True
