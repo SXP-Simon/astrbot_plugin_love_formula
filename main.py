@@ -16,6 +16,7 @@ from .src.analysis.classifier import ArchetypeClassifier
 from .src.analysis.llm_analyzer import LLMAnalyzer
 from .src.handlers.message_handler import MessageHandler
 from .src.handlers.notice_handler import NoticeHandler
+from .src.handlers.history_fetcher import OneBotAdapter
 from .src.persistence.database import DBManager
 from .src.persistence.repo import LoveRepo
 from .src.visual.renderer import LoveRenderer
@@ -68,9 +69,10 @@ class LoveFormulaPlugin(Star):
 
         self.msg_handler = MessageHandler(self.repo)
         self.notice_handler = NoticeHandler(self.repo)
+        self.history_fetcher = OneBotAdapter(context, config)
         self.theme_mgr = ThemeManager(os.path.dirname(os.path.abspath(__file__)))
         self.renderer = LoveRenderer(context, self.theme_mgr)
-        self.llm = LLMAnalyzer(context)
+        self.llm = LLMAnalyzer(context, self.config)
         self.calculator = LoveCalculator()
         self.classifier = ArchetypeClassifier()
 
@@ -149,18 +151,38 @@ class LoveFormulaPlugin(Star):
 
         archetype_key, archetype_name = ArchetypeClassifier.classify(scores)
 
-        # 4. LLM 分析
-        # 4. LLM 分析 (获取判词和诊断)
+        # 4. LLM 分析 (获取判词和诊断) - Data Driven
         llm_result = {"comment": "获取失败", "diagnostics": []}
-        raw_data_dict = (
-            daily_data.model_dump()
-        )  # Ensure raw_data_dict is available for metrics
+        deep_dive_result = None
+
+        raw_data_dict = daily_data.model_dump()
+
         if self.config.get("enable_llm_commentary", True):
             provider_id = self.config.get("llm_provider_id", "")
-            # 注意: 现在 generate_commentary 返回的是字典 {"comment": "...", "diagnostics": [...]}
+
+            # 4.1 Basic Commentary (No Context)
             llm_result = await self.llm.generate_commentary(
                 scores, archetype_name, raw_data_dict, provider_id=provider_id
             )
+
+            # 4.2 Deep Dive (Context Driven)
+            if self.config.get("enable_history_analysis", True):
+                try:
+                    chat_context = await self.history_fetcher.fetch_context(
+                        event, user_id
+                    )
+                    if chat_context:
+                        deep_dive_result = await self.llm.generate_deep_dive(
+                            scores,
+                            archetype_name,
+                            raw_data_dict,
+                            chat_context,
+                            provider_id=provider_id,
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to fetch/analyze chat history: {e}")
+            else:
+                logger.debug("History analysis disabled by config.")
         else:
             llm_result["comment"] = "LLM点评已关闭。"
 
@@ -195,6 +217,7 @@ class LoveFormulaPlugin(Star):
             "logic_insights": logic_insights,
             "comment": llm_result.get("comment", "获取失败"),
             "equation": self._construct_latex_equation(scores, raw_data_dict),
+            "deep_dive": deep_dive_result,
             "generated_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         }
 

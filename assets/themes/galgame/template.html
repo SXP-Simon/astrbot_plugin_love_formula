@@ -322,8 +322,79 @@
         }
 
         .eq-val {
-            font-size: 1.2rem;
+            font-size: 1.6rem;
             color: var(--primary-color);
+        }
+
+        /* Deep Dive Section */
+        .deep-dive-card {
+            background: linear-gradient(135deg, #2d3436 0%, #000000 100%);
+            color: #dfe6e9;
+            border-radius: 24px;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #636e72;
+        }
+
+        .deep-dive-card::after {
+            content: "CONFIDENTIAL";
+            position: absolute;
+            right: -10px;
+            bottom: -25px;
+            font-size: 5rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.03);
+            transform: rotate(-5deg);
+            pointer-events: none;
+            font-family: sans-serif;
+            letter-spacing: 5px;
+        }
+
+        .dd-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 15px;
+        }
+
+        .dd-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #ff7675;
+            letter-spacing: 2px;
+            font-family: 'ZCOOL KuaiLe', cursive;
+            text-shadow: 0 0 10px rgba(255, 118, 117, 0.3);
+        }
+
+        .dd-keywords {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: rgba(255, 118, 117, 0.1);
+            color: #ff7675;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255, 118, 117, 0.3);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .dd-text {
+            line-height: 1.8;
+            font-size: 1.1rem;
+            font-style: italic;
+            color: #b2bec3;
+            padding: 0 5px;
+            font-family: 'Noto Sans SC', serif;
         }
 
         .footer {
@@ -337,7 +408,84 @@
         }
 
         .markdown-body {
-            /* Basic resets for markdown content */
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
+        /* Deep Dive Section */
+        /* Deep Dive Section - Light/Dreamy Theme */
+        .deep-dive-card {
+            background: linear-gradient(135deg, #fff9fa 0%, #fff0f5 100%);
+            color: #555;
+            border-radius: 24px;
+            padding: 25px;
+            margin-top: 20px;
+            box-shadow: 0 10px 30px rgba(255, 107, 129, 0.15);
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #ffe3e3;
+        }
+
+        .deep-dive-card::after {
+            content: "SOUL ECHO";
+            position: absolute;
+            right: -10px;
+            bottom: -25px;
+            font-size: 5rem;
+            font-weight: 900;
+            color: rgba(255, 107, 129, 0.05);
+            transform: rotate(-5deg);
+            pointer-events: none;
+            font-family: sans-serif;
+            letter-spacing: 5px;
+        }
+
+        .dd-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            border-bottom: 2px dashed rgba(255, 107, 129, 0.2);
+            padding-bottom: 15px;
+        }
+
+        .dd-title {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            letter-spacing: 2px;
+            font-family: 'ZCOOL KuaiLe', cursive;
+        }
+
+        .dd-keywords {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            background: #fff;
+            color: var(--primary-color);
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            border: 1px solid #ffd1d1;
+            box-shadow: 0 2px 8px rgba(255, 107, 129, 0.1);
+            font-weight: bold;
+        }
+
+        .dd-text {
+            line-height: 1.8;
+            font-size: 1.1rem;
+            font-style: italic;
+            color: #666;
+            padding: 0 5px;
+            font-family: 'Noto Sans SC', serif;
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 12px;
+            padding: 15px;
+            border-left: 4px solid var(--secondary-color);
         }
     </style>
 </head>
@@ -425,6 +573,28 @@
             <div class="equation-box" style="grid-column: span 2;">
                 <div class="eq-label">演化算式 (Evolution Equation)</div>
                 <div class="eq-val">${{ data.equation }}$</div>
+            </div>
+            {% endif %}
+
+            {% if data.deep_dive %}
+            <div class="deep-dive-card" style="grid-column: span 2;">
+                <div class="dd-header">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff7675" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <span class="dd-title">灵魂回响 (Soul Echoes)</span>
+                </div>
+                <div class="dd-content">
+                    <div class="dd-keywords">
+                        {% for tag in data.deep_dive.keywords %}
+                        <span class="tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="dd-text markdown-body">
+                        {{ data.deep_dive.content }}
+                    </div>
+                </div>
             </div>
             {% endif %}
 
