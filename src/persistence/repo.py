@@ -115,10 +115,15 @@ class LoveRepo:
             session.add(record)
 
     async def get_today_data(self, group_id: str, user_id: str) -> LoveDailyRef | None:
+        return await self.get_data_by_date(group_id, user_id, date.today())
+
+    async def get_data_by_date(
+        self, group_id: str, user_id: str, target_date: date
+    ) -> LoveDailyRef | None:
+        """获取指定日期的数据"""
         async with self.db.get_session() as session:
-            today = date.today()
             stmt = select(LoveDailyRef).where(
-                LoveDailyRef.date == today,
+                LoveDailyRef.date == target_date,
                 LoveDailyRef.group_id == group_id,
                 LoveDailyRef.user_id == user_id,
             )

@@ -56,7 +56,7 @@ class LoveFormulaPlugin(Star):
                 import shutil
 
                 shutil.move(old_db_path, db_path)
-            except Exception as e:
+            except Exception:
                 pass  # 如果移动失败，则按新路径初始化，由 DBManager 处理
 
         self.db_mgr = DBManager(db_path)
@@ -127,15 +127,25 @@ class LoveFormulaPlugin(Star):
             yield event.plain_result("请在群聊中使用此指令。")
             return
 
-        # 1. 获取数据
+        # 1. 获取数据回溯
         if not self._is_group_allowed(group_id):
             yield event.plain_result("此群未启用恋爱分析功能。")
             return
 
+        # 尝试获取昨日得分作为白月光值
+        from datetime import date, timedelta
+
+        yesterday = date.today() - timedelta(days=1)
+        yesterday_data = await self.repo.get_data_by_date(group_id, user_id, yesterday)
+        yesterday_score = 0
+        if yesterday_data:
+            y_scores = self.calculator.calculate_scores(yesterday_data)
+            yesterday_score = y_scores.get("score", 0)
+            logger.debug(f"Yesterday score for {user_id}: {yesterday_score}")
+
         daily_data = await self.repo.get_today_data(group_id, user_id)
 
         # 检查配置中的阈值
-
         min_msg = self.config.get("min_msg_threshold", 3)
         if not daily_data or daily_data.msg_sent < min_msg:
             prefix = (
@@ -147,8 +157,9 @@ class LoveFormulaPlugin(Star):
             return
 
         # 2. 计算分数
-
-        scores = self.calculator.calculate_scores(daily_data)
+        scores = self.calculator.calculate_scores(
+            daily_data, yesterday_score=yesterday_score
+        )
 
         # 3. 归类人设
 
@@ -220,7 +231,7 @@ class LoveFormulaPlugin(Star):
                 "纯爱值": f"{scores['simp']}%",
                 "存在感": f"{scores['vibe']}%",
                 "败犬值": f"{scores['ick']}%",
-                "旧情指数": f"{scores['nostalgia']}%",
+                "白月光指数": f"{scores['nostalgia']}%",
                 "营业频率": f"{raw_data_dict.get('msg_sent', 0)}条/日",
                 "小作文功率": f"{int(raw_data_dict.get('text_len_total', 0) / raw_data_dict.get('msg_sent', 1)) if raw_data_dict.get('msg_sent', 0) > 0 else 0}字/条",
             },
@@ -297,7 +308,7 @@ class LoveFormulaPlugin(Star):
                 "【社交观测】其发言虽然平稳，但缺乏致命的吸引力。群友们对其回应保持在一个‘礼貌但不热烈’的安全距离。"
             )
 
-        # 3. 败犬与旧情诊断 (I / N)
+        # 3. 败犬与白月光诊断 (I / N)
         recall = raw_data.get("recall_count", 0)
         repeat = raw_data.get("repeat_count", 0)
         topic = raw_data.get("topic_count", 0)
