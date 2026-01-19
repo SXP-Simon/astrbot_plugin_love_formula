@@ -128,6 +128,8 @@ class LoveFormulaPlugin(Star):
 
         user_id = sender_id
         nickname = event.message_obj.sender.nickname
+        # Disable default LLM reply for this command.
+        event.should_call_llm(True)
 
         # 0. 检查是否为指定分析（被 at 的人）
         targeted_user_id = None
