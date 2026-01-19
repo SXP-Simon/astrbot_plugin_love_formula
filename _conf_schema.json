@@ -15,18 +15,20 @@
             "type": "string"
         }
     },
-    "theme": {
-        "description": "视觉主题",
-        "type": "string",
-        "options": ["galgame"],
-        "default": "galgame",
-        "hint": "选择生成图片的视觉风格。默认 Galgame 风格。"
+    "min_msg_threshold": {
+        "type": "int",
+        "description": "最小发言数阈值",
+        "default": 3,
+        "hint": "用户当日发送消息少于此数量时，显示“路人甲/未启动”状态。"
     },
-    "enable_llm_commentary": {
-        "description": "启用 LLM 毒舌点评",
-        "type": "bool",
-        "default": true,
-        "hint": "是否启用基于大语言模型的趣味点评功能。"
+    "filter_users": {
+        "type": "list",
+        "title": "过滤用户 ID 列表",
+        "description": "分析时屏蔽的 QQ 号列表（如其他机器人）。",
+        "items": {
+            "type": "string"
+        },
+        "default": []
     },
     "llm_provider_id": {
         "type": "string",
@@ -35,25 +37,32 @@
         "default": "",
         "hint": "全局默认的 LLM Provider。如果下方具体功能的 Provider 为空，则使用此项。"
     },
+    "enable_llm_commentary": {
+        "description": "启用 LLM 毒舌点评",
+        "type": "bool",
+        "default": true,
+        "hint": "是否启用基于大语言模型的趣味点评功能。"
+    },
     "commentary_provider_id": {
         "type": "string",
         "description": "点评专用 LLM Provider ID",
         "_special": "select_provider",
         "default": "",
-        "hint": "专用于生成‘毒舌点评’的模型服务商。留空则使用默认配置。"
+        "hint": "专用于生成‘毒舌点评’的模型服务商。可以使用流口水模型。留空则使用默认配置。"
     },
-    "deep_dive_provider_id": {
-        "type": "string",
-        "description": "侧写专用 LLM Provider ID",
-        "_special": "select_provider",
-        "default": "",
-        "hint": "专用于生成‘深度侧写’的模型服务商。建议使用推理能力更强的模型（如 DeepSeek-R1/V3/Claude 3.5）。留空则使用默认配置。"
-    },
-    "min_msg_threshold": {
-        "type": "int",
-        "description": "最小发言数阈值",
-        "default": 3,
-        "hint": "用户当日发送消息少于此数量时，显示“路人甲/未启动”状态。"
+    "llm_judgment_template": {
+        "description": "毒舌判词提示词模板",
+        "type": "object",
+        "hint": "自定义判词生成模板。变量说明：\n- {archetype}: 最终人设\n- {s}/{v}/{i}/{n}: 四维评分\n- {msg_sent}: 发言条数\n- {reply_received}: 被回复数\n- {recall_count}: 撤回数\n- {topic_count}: 开启话题数",
+        "items": {
+            "template": {
+                "description": "模板内容",
+                "type": "text",
+                "editor_mode": true,
+                "editor_language": "markdown",
+                "default": "你现在是极度毒舌、冷酷且满口 ACG 术语的 Galgame 《恋爱法庭》首席裁判官。\n你的任务是审判这名“被告”（群成员）今日的表现，用最辛辣的文笔拆穿对方的社交伪装。\n\n【案件卷宗：被告数据】\n- 最终判定人设: {archetype}\n- 纯爱值 (Simp): {s}/100\n- 存在感 (Vibe): {v}/100\n- 败犬值 (Ick): {i}/100\n- 旧情指数 (Nostalgia): {n}/100\n\n【关键证言：详细行为记录】\n- 营业频率: {msg_sent} 条发言\n- 互动实效: 被回复 {reply_received} 次\n- 败犬行为: 撤回了 {recall_count} 条消息\n- 破冰记录: 开启了 {topic_count} 次新话题\n\n【法庭宣判要求】\n请严格按以下格式输出，禁止任何多余解释：\n[JUDGMENT]\n一段极度毒舌且充满魅力的宣判。必须包含特定的 ACG 角色属性。\n[DIAGNOSTICS]\n1. 针对纯爱值与存在感的扎心点评。\n2. 针对败犬值（撤回、刷屏）的人格羞辱式解构。\n3. 针对旧情指数/破冰能力的分析。"
+            }
+        }
     },
     "enable_history_analysis": {
         "description": "启用聊天记录深度侧写",
@@ -67,49 +76,40 @@
         "default": 50,
         "hint": "大模型分析时读取的最近群聊消息条数（建议 20-50 条）。"
     },
-    "filter_users": {
-        "type": "list",
-        "title": "过滤用户 ID 列表",
-        "description": "在此列表中的用户 ID 发送的消息将不参与分析（如其他机器人）。",
-        "items": {
-            "type": "string"
-        },
-        "default": []
-    },
-    "llm_judgment_template": {
-        "description": "毒舌判词提示词模板",
-        "type": "object",
-        "hint": "自定义判词生成模板。变量说明：\n- {archetype}: 最终人设（如“纯爱战神”）\n- {s}/{v}/{i}/{n}: 四维评分（0-100）\n- {msg_sent}: 发言条数\n- {reply_received}: 被回复数\n- {reaction_received}: 被贴贴数\n- {recall_count}: 撤回数\n- {repeat_count}: 复读数\n- {topic_count}: 开启话题数",
-        "items": {
-            "template": {
-                "description": "模板内容",
-                "type": "text",
-                "editor_mode": true,
-                "editor_language": "markdown",
-                "default": "你现在是极度毒舌、冷酷且满口 ACG 术语的 Galgame 《恋爱法庭》首席裁判官。\n你的任务是审判这名“被告”（群成员）今日的表现，用最辛辣的文笔拆穿对方的社交伪装。\n\n【案件卷宗：被告数据】\n- 最终判定人设: {archetype}\n- 纯爱值 (Simp): {s}/100（关联：主动投入、自我感动）\n- 存在感 (Vibe): {v}/100（关联：被动反馈、社交引力）\n- 败犬值 (Ick): {i}/100（关联：社交尴尬、边缘化行为）\n- 旧情指数 (Nostalgia): {n}/100（关联：破冰能力、历史底蕴）\n\n【关键证言：详细行为记录】\n- 营业频率: {msg_sent} 条发言\n- 互动实效: 被回复 {reply_received} 次，被贴贴/表态 {reaction_received} 次\n- 败犬行为: 撤回了 {recall_count} 条消息，触发了 {repeat_count} 次复读惩罚\n- 破冰记录: 开启了 {topic_count} 次新话题\n\n【法庭宣判要求】\n请严格按以下格式输出，禁止任何多余解释：\n[JUDGMENT]\n一段极度毒舌且充满魅力的宣判。必须包含特定的 ACG 角色属性。\n[DIAGNOSTICS]\n1. 针对纯爱值与存在感的扎心点评。\n2. 针对败犬值（撤回、刷屏）的人格羞辱式解构。\n3. 针对旧情指数/破冰能力的分析。"
-            }
-        }
-    },
-    "llm_deep_dive_template": {
-        "description": "深度侧写提示词模板",
-        "type": "object",
-        "hint": "自定义深度侧写模板。变量说明：\n- {context_text}: 格式化后的最近聊天记录（必选）\n- {archetype}: 最终人设\n- {s}/{v}/{i}/{n}: 四维评分\n- {msg_sent}: 发言条数\n- {reply_received}: 被回复数\n- {recall_count}: 撤回数",
-        "items": {
-            "template": {
-                "description": "模板内容",
-                "type": "text",
-                "editor_mode": true,
-                "editor_language": "markdown",
-                "default": "你是一位洞察力极强的心理侧写师，擅长结合“行为数据”与“对话细节”捕捉人的真实心理状态，并从对话中筛选出最具代表性的“呈堂证供”。\n请阅读以下【行为数据】与【群聊片段】，对标记为 [Target] 的用户进行深度侧写。\n\n【参考资料：行为数据】\n- 判定人设: {archetype}\n- 纯爱值 (Simp): {s}/100（关联：主动投入）\n- 存在感 (Vibe): {v}/100（关联：被动反馈）\n- 败犬值 (Ick): {i}/100（关联：社交尴尬）\n- 旧情指数 (Nostalgia): {n}/100（关联：破冰/历史）\n- 行为统计: 发言 {msg_sent} 条，被回复 {reply_received} 次，撤回 {recall_count} 次。\n\n【重点分析：近 20 条群聊片段】\n{context_text}\n\n【分析目标】\n请结合数据与对话：数据揭示了其宏观社交地位，而对话揭示了其微观心理动态。\n\n**重要要求：**\n1. **必须引用原文**：在分析时，必须摘录 1-2 句用户的具体发言或交互细节作为佐证（例如：“当他说‘...’时...”）。\n2. **挖掘潜台词**：不要只复述表面意思，要分析其背后的心理动机（如：防御机制、寻求认同、掩饰尴尬等）。\n\n示例逻辑：\n- 数据显示“纯爱值”高，且对话中他在 01:23 发言“晚安”却无人回复 -> 侧写重点应为“自我感动的独角戏”。\n- 数据显示“败犬值”高，且对话中他撤回了一条关于 ACG 的发言 -> 侧写重点应为“因过度在意评价而畏手畏脚”。\n\n请严格按以下格式输出 JSON 结构（EVIDENCE 部分请筛选 {max_evidence} 个最有代表性的对话片段）：\n{{\n    \"DEEP_PSYCHE\": {{\n        \"KEYWORDS\": [\"#关键词1\", \"#关键词2\", \"#关键词3\"],\n        \"ANALYSIS\": \"一段深度心理侧写。语气要冷静、透彻，引用具体细节，像是在撰写一份绝密的心理评估报告。\"\n    }},\n    \"EVIDENCE\": [\n        {{\n            \"title\": \"证言一：(例如：强行解释)\",\n            \"reason\": \"简短说明为何选此段作为证据\",\n            \"dialogue\": [\n                {{\"role\": \"对话者的真实昵称\", \"content\": \"对话内容...\"}},\n                {{\"role\": \"[Target]\", \"content\": \"目标用户的回应...\"}}\n            ]\n        }}\n    ]\n}}\n**必须包含 DEEP_PSYCHE 和 EVIDENCE 两个一级 Key。EVIDENCE 数组不能为空。**\n**重要：role 必须使用上述聊天记录中出现的真实 [nickname] 或 '[Target]'，严禁使用 UserA/UserB 等占位符。内容必须摘录自原始记录。**"
-            }
-        }
-    },
     "max_evidence_scenes": {
-        "title": "Max Evidence Scenes",
-        "description": "Maximum number of chat scenes to use as evidence.",
+        "title": "证据场景最大数量",
+        "description": "深度侧写中展示的聊天证据场景最大数量。",
         "type": "int",
         "default": 3,
         "minimum": 1,
         "maximum": 10
+    },
+    "deep_dive_provider_id": {
+        "type": "string",
+        "description": "侧写专用 LLM Provider ID",
+        "_special": "select_provider",
+        "default": "",
+        "hint": "专用于生成‘深度侧写’的模型服务商。建议使用能力强的模型。留空则使用默认配置。"
+    },
+    "llm_deep_dive_template": {
+        "description": "深度侧写提示词模板",
+        "type": "object",
+        "hint": "自定义深度侧写模板。变量说明：\n- {context_text}: 格式化后的最近聊天记录\n- {archetype}: 最终人设\n- {s}/{v}/{i}/{n}: 四维评分",
+        "items": {
+            "template": {
+                "description": "模板内容",
+                "type": "text",
+                "editor_mode": true,
+                "editor_language": "markdown",
+                "default": "你是一位洞察力极强的心理侧写师，擅长结合“行为数据”与“对话细节”捕捉人的真实心理状态。\n请阅读以下【行为数据】与【群聊片段】，对标记为 [Target] 的用户进行深度侧写。\n\n【参考资料：行为数据】\n- 判定人设: {archetype}\n- 纯爱值 (Simp): {s}/100\n- 存在感 (Vibe): {v}/100\n- 败犬值 (Ick): {i}/100\n- 旧情指数 (Nostalgia): {n}/100\n\n【重点分析：近 20 条群聊片段】\n{context_text}\n\n【分析目标】\n请结合数据与对话：数据揭示了其宏观社交地位，而对话揭示了其微观心理动态。\n\n**重要要求：**\n1. **必须引用原文**：在分析时，必须摘录 1-2 句用户的具体发言或交互细节（例如：“当他说‘...’时...”）。\n2. **挖掘潜台词**：分析其背后的心理动机（如：防御机制、寻求认同、掩饰尴尬等）。\n\n请严格按以下格式输出 JSON 结构：\n{{\n    \"DEEP_PSYCHE\": {{\n        \"KEYWORDS\": [\"#关键词1\", \"#关键词2\", \"#关键词3\"],\n        \"ANALYSIS\": \"一段深度心理侧写。语气要冷静、透彻。\"\n    }},\n    \"EVIDENCE\": [\n        {{\n            \"title\": \"证言一\",\n            \"reason\": \"原因说明\",\n            \"dialogue\": [\n                {{\"role\": \"真实的昵称\", \"content\": \"内容...\"}},\n                {{\"role\": \"[Target]\", \"content\": \"回应...\"}}\n            ]\n        }}\n    ]\n}}\n**必须包含 DEEP_PSYCHE 和 EVIDENCE 两个一级 Key。EVIDENCE 数组不能为空。**"
+            }
+        }
+    },
+    "theme": {
+        "description": "视觉主题",
+        "type": "string",
+        "options": ["galgame"],
+        "default": "galgame",
+        "hint": "选择生成图片的视觉风格。默认 Galgame 风格。"
     }
 }
