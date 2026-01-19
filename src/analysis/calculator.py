@@ -30,9 +30,9 @@ class LoveCalculator:
 
         # 2. 融入昨日好感度 (作为 Nostalgia 的核心)
         # 如果昨日有好感度，将其按一定比例转化为今日的 Nostalgia 原始分
-        # 假设昨日 100 分 -> 今日额外提供 100 点原始白月光值（映射后约 92%）
+        # 降权处理：从 1.0 降至 0.3，避免分值过快堆积
         if yesterday_score > 0:
-            raw_nostalgia += yesterday_score
+            raw_nostalgia += yesterday_score * 0.3
 
         # 3. 归一化逻辑 (使用 sigmoid 函数映射到 0-100)
         # 映射关系: 0 -> 0, 10 -> 24, 20 -> 46, 50 -> 84, 100 -> 98
