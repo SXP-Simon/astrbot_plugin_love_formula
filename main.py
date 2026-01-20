@@ -403,7 +403,6 @@ class LoveFormulaPlugin(Star):
             await self.msg_handler.handle_message(my_event)
         yield event.plain_result(f"成功处理:{len(message_list)}条聊天记录")
 
-
     async def get_message(self, group_id, bot, message_id):
         payloads = {
             "group_id":group_id,
@@ -418,7 +417,6 @@ class LoveFormulaPlugin(Star):
             except Exception as e:
                 logger.error(f"[LoveFormula] 解析历史消息失败 e:{e}", exc_info=True)
                 return [], None
-
 
     def _construct_latex_equation(self, scores: dict, raw_data: dict) -> str:
         """根据公式生成 LaTeX 字符串"""
