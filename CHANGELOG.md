@@ -1,14 +1,17 @@
 # 更新日志 (CHANGELOG)
 
-## [v1.0.11] - feat(Renderer): 优化 t2i 参数
+## [v1.0.12] - 处理机器人被 @ 的情况
 
-*   **🛠️ 健壮性增强**: ReportGenerator 优化 t2i 参数，处理 png 参数传递时去除 quality 参数，避免生成失败
-
+*   **🐛 Bug 修复**: 处理机器人被 @ 的情况，避免触发机器人对自己的分析。
 
 ---
 
 <details>
 <summary>📋 点击查看历史更新日志</summary>
+
+## [v1.0.11] - feat(Renderer): 优化 t2i 参数
+
+*   **🛠️ 健壮性增强**: ReportGenerator 优化 t2i 参数，处理 png 参数传递时去除 quality 参数，避免生成失败
 
 ## [v1.0.10] - feat(Renderer): 优化 t2i 参数
 
