@@ -1,14 +1,19 @@
 # 更新日志 (CHANGELOG)
 
 
-## [v1.0.9] - fix(MessageHandler): 去重检查
+## [v1.0.10] - feat(Renderer): 优化 t2i 参数
 
-*   **🐛 Bug 修复**: fix(MessageHandler): 去重检查，通过 DB 索引检查 ID，确保每条消息在生命周期内只被计算一次
+*   **🛠️ 健壮性增强**: ReportGenerator 优化 t2i 参数，增加设备缩放因子。生成的报告图片更加清晰。
 
 ---
 
 <details>
 <summary>📋 点击查看历史更新日志</summary>
+
+## [v1.0.9] - fix(MessageHandler): 去重检查
+
+*   **🐛 Bug 修复**: fix(MessageHandler): 去重检查，通过 DB 索引检查 ID，确保每条消息在生命周期内只被计算一次
+
 
 ## [v1.0.8] - 节流和阻止默认 LLM 接管
 
