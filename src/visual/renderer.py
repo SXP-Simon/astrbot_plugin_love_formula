@@ -142,44 +142,76 @@ class LoveRenderer:
             raise
 
         # 3. 使用 AstrBot 的 HTML 渲染引擎
-        try:
-            logger.debug("调用 AstrBot html_renderer...")
-            path = await html_renderer.render_custom_template(
-                tmpl_str=html_content,
-                tmpl_data={},
-                return_url=False,
-                options={
-                    "type": "jpeg",
-                    "quality": 100,
-                    "full_page": True,
-                },
-            )
-            logger.info(f"图片生成完成: {path}")
+        render_strategies = [
+            # 1. 第一策略: PNG, Ultra, quality, Device scale
+            {
+                "type": "png",
+                "full_page": True,
+                "scale": "device",
+                "device_scale_factor_level": "ultra",
+            },
+            # 2. 第二策略: JPEG, Ultra, quality 100%, Device scale
+            {
+                "type": "jpeg",
+                "quality": 100,
+                "full_page": True,
+                "scale": "device",
+                "device_scale_factor_level": "ultra",
+            },
+            # 3. 第三策略: JPEG, Normal quality 95%, Device scale
+            {
+                "type": "jpeg",
+                "quality": 95,
+                "full_page": True,
+                "scale": "device",
+                "device_scale_factor_level": "high",
+            },
+            # 4. 第四策略: JPEG, normal quality, Device scale (后备)
+            {
+                "full_page": True,
+                "type": "jpeg",
+                "quality": 80,
+                "scale": "device",
+                # normal quality
+            },
+        ]
 
-            # Validation: Check if the file is actually an image or an error text
+        last_exception = None
+        for options in render_strategies:
+            try:
+                logger.debug(f"调用 AstrBot html_renderer (options={options})...")
+                path = await html_renderer.render_custom_template(
+                    tmpl_str=html_content,
+                    tmpl_data={},
+                    return_url=False,
+                    options=options,
+                )
+                logger.info(f"图片生成完成: {path}")
 
-            if os.path.exists(path):
-                file_size = os.path.getsize(path)
-                if (
-                    file_size < 1024
-                ):  # Less than 1KB is suspicious for a full page screenshot
-                    with open(path, "rb") as f:
-                        content = f.read(100)  # Read first 100 bytes
+                # 验证: 检查文件是否为图片或错误文本
+                if os.path.exists(path):
+                    file_size = os.path.getsize(path)
+                    if file_size < 1024:  # 小于1KB可疑
+                        with open(path, "rb") as f:
+                            content = f.read(100)
 
-                    try:
-                        text_content = content.decode("utf-8")
-                        if "Error" in text_content or "Exception" in text_content:
-                            logger.error(
-                                f"Rendered file seems to be an error message: {text_content}"
-                            )
-                            raise RuntimeError(
-                                f"Browser rendering failed: {text_content}"
-                            )
-                    except UnicodeDecodeError:
-                        # Binary content is good (likely image)
-                        pass
+                        try:
+                            text_content = content.decode("utf-8")
+                            if "Error" in text_content or "Exception" in text_content:
+                                logger.warning(f"渲染策略失败: {text_content}")
+                                raise RuntimeError(f"渲染文件错误: {text_content}")
+                        except UnicodeDecodeError:
+                            # 二进制内容是好的
+                            pass
 
-            return path
-        except Exception as e:
-            logger.error(f"AstrBot 渲染引擎调用失败: {e}")
-            raise
+                return path  # 成功，立即返回
+
+            except Exception as e:
+                logger.warning(f"渲染策略失败 ({options}): {e}")
+                last_exception = e
+                logger.warning("尝试下一个策略")
+                continue  # 尝试下一个策略
+
+        # 如果所有策略都失败
+        logger.error(f"所有渲染策略均失败. 最后错误: {last_exception}")
+        raise last_exception or RuntimeError("所有渲染策略均失败")
