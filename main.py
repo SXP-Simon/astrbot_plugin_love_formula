@@ -350,6 +350,7 @@ class LoveFormulaPlugin(Star):
         message_id = reply.id
         message_list = []
         old_len = len(message_list)
+        # 通过onebot的群聊消息接口获取群聊消息
         while(True):
             messages, message_id = await self.get_message(group_id, bot, message_id)
             message_list.extend(messages)
@@ -365,6 +366,7 @@ class LoveFormulaPlugin(Star):
                 logger.info("[LoveFormula] 超过最大消息获取数量,退出历史消息获取")
                 break
         event_list = []
+        # 获取当前使用的平台(用于生成平台消息)
         for platform in self.context.platform_manager.get_insts():
             if platform.config.get("id", None) == event.platform_meta.id:
                 main_platform = platform
@@ -372,6 +374,7 @@ class LoveFormulaPlugin(Star):
         else:
             yield event.plain_result("没有成功获取到当前平台适配器")
             return
+        # 创建AiocqhttpMessageEvent消息,用来给handle_message函数使用
         for message in message_list:
             abm = AstrBotMessage()
             abm.self_id = str(message["self_id"])
@@ -395,8 +398,9 @@ class LoveFormulaPlugin(Star):
                 session_id=abm.session_id,
                 bot=main_platform.bot,
             ))
-        for Myevent in event_list:
-            await self.msg_handler.handle_message(Myevent)
+        # 使用handle_message函数进行学习
+        for my_event in event_list:
+            await self.msg_handler.handle_message(my_event)
         yield event.plain_result(f"成功处理:{len(message_list)}条聊天记录")
 
 
