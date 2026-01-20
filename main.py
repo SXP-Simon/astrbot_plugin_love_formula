@@ -134,9 +134,12 @@ class LoveFormulaPlugin(Star):
         # 0. 检查是否为指定分析（被 at 的人）
         targeted_user_id = None
         targeted_nickname = None
+        self_id = event.get_self_id()
 
         for component in event.message_obj.message:
             if isinstance(component, At):
+                if str(component.qq) == self_id:
+                    continue
                 targeted_user_id = str(component.qq)
                 # 尝试获取 被 at 人的昵称，如果获取不到则使用默认
                 targeted_nickname = (
