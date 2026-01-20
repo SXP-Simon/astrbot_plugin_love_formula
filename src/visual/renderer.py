@@ -179,6 +179,10 @@ class LoveRenderer:
         last_exception = None
         for options in render_strategies:
             try:
+                # Cleanse options
+                if options.get("type") == "png":
+                    options["quality"] = None
+
                 logger.debug(f"调用 AstrBot html_renderer (options={options})...")
                 path = await html_renderer.render_custom_template(
                     tmpl_str=html_content,
