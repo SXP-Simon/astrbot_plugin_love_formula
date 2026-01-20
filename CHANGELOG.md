@@ -1,14 +1,18 @@
 # 更新日志 (CHANGELOG)
 
+## [v1.0.11] - feat(Renderer): 优化 t2i 参数
 
-## [v1.0.10] - feat(Renderer): 优化 t2i 参数
+*   **🛠️ 健壮性增强**: ReportGenerator 优化 t2i 参数，处理 png 参数传递时去除 quality 参数，避免生成失败
 
-*   **🛠️ 健壮性增强**: ReportGenerator 优化 t2i 参数，增加设备缩放因子。生成的报告图片更加清晰。
 
 ---
 
 <details>
 <summary>📋 点击查看历史更新日志</summary>
+
+## [v1.0.10] - feat(Renderer): 优化 t2i 参数
+
+*   **🛠️ 健壮性增强**: ReportGenerator 优化 t2i 参数，增加设备缩放因子。生成的报告图片更加清晰。
 
 ## [v1.0.9] - fix(MessageHandler): 去重检查
 
