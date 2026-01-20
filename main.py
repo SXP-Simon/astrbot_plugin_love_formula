@@ -3,10 +3,12 @@ import os
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.event.filter import CustomFilter, EventMessageType
+from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import AiocqhttpMessageEvent
 from astrbot.core.config import AstrBotConfig
-from astrbot.core.message.components import At, Image
+from astrbot.core.message.components import At, Image, Reply
 from astrbot.core.star import Star
 from astrbot.core.star.context import Context
+from astrbot.api.platform import AstrBotMessage, MessageMember, MessageType
 
 from .src.analysis.calculator import LoveCalculator
 from .src.analysis.classifier import ArchetypeClassifier
@@ -323,6 +325,96 @@ class LoveFormulaPlugin(Star):
         except Exception as e:
             logger.error(f"Render failed: {e}", exc_info=True)
             yield event.plain_result(f"生成失败: {e}")
+
+    @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP)
+    @filter.command("学习")
+    async def retrieve_historical_records(self, event: AiocqhttpMessageEvent):
+        """从回复的消息开始学习聊天记录到现在"""
+        # 防止内存占用过大(最大消息数量)
+        max_message_n = 500
+        group_id = event.get_group_id()
+        if not group_id:
+            yield event.plain_result("请在群聊中使用此指令")
+            return
+        bot = getattr(event, "bot", None)
+        if bot is None:
+            return
+        chain = event.get_messages()
+        if not chain:
+            return
+        reply: Reply | None = chain[0] if isinstance(chain[0], Reply) else None
+        if not reply or not reply.chain:
+            yield event.plain_result("使用此命令请回复消息")
+            return
+        yield event.plain_result("开始获取历史消息...")
+        message_id = reply.id
+        message_list = []
+        old_len = len(message_list)
+        while(True):
+            messages, message_id = await self.get_message(group_id, bot, message_id)
+            message_list.extend(messages)
+            if len(message_list) - old_len < 19:
+                logger.info("[LoveFormula] 获取聊天记录完成,退出历史消息获取")
+                break
+            else:
+                old_len = len(message_list)
+            if message_id is None:
+                logger.info("[LoveFormula] onebot接口获取失败,退出历史消息获取")
+                break
+            if len(message_list) >= max_message_n:
+                logger.info("[LoveFormula] 超过最大消息获取数量,退出历史消息获取")
+                break
+        event_list = []
+        for platform in self.context.platform_manager.get_insts():
+            if platform.config.get("id", None) == event.platform_meta.id:
+                main_platform = platform
+                break
+        else:
+            yield event.plain_result("没有成功获取到当前平台适配器")
+            return
+        for message in message_list:
+            abm = AstrBotMessage()
+            abm.self_id = str(message["self_id"])
+            abm.sender = MessageMember(
+                user_id=str(message["sender"]["user_id"]),
+                nickname=str(message["sender"]["nickname"])
+            )
+            abm.type = MessageType.GROUP_MESSAGE
+            abm.group_id = str(group_id)
+            abm.session_id = str(group_id)
+            abm.message_str = message["raw_message"]
+            abm.message = message["message"]
+            abm.timestamp = int(message["time"])
+            abm.message_id = str(message["message_id"])
+            abm.raw_message = message["raw_message"]
+
+            event_list.append(AiocqhttpMessageEvent(
+                message_str=abm.message_str,
+                message_obj=abm,
+                platform_meta=main_platform.meta(),
+                session_id=abm.session_id,
+                bot=main_platform.bot,
+            ))
+        for Myevent in event_list:
+            await self.msg_handler.handle_message(Myevent)
+        yield event.plain_result(f"成功处理:{len(message_list)}条聊天记录")
+
+
+    async def get_message(self, group_id, bot, message_id):
+        payloads = {
+            "group_id":group_id,
+            "message_seq":message_id
+        }
+        data = await bot.api.call_action('get_group_msg_history', **payloads)
+        if not data:
+            return [], None
+        else:
+            try:
+                return data["messages"], data["messages"][-1]["message_id"]
+            except Exception as e:
+                logger.error(f"[LoveFormula] 解析历史消息失败 e:{e}", exc_info=True)
+                return [], None
+
 
     def _construct_latex_equation(self, scores: dict, raw_data: dict) -> str:
         """根据公式生成 LaTeX 字符串"""
