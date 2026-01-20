@@ -1,8 +1,18 @@
+<div align="center">
+
 # 💖 Love Formula: 赛博恋爱演化诊断插件
 
-> **“假如这个群是你的恋人，你今天的表现是顶级偶像还是败犬 NPC？”**
+[![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-ff69b4?style=for-the-badge)](https://github.com/AstrBotDevs/AstrBot)
+[![License](https://img.shields.io/badge/License-AGPL3.0-green.svg?style=for-the-badge)](LICENSE)
+[![](https://img.shields.io/badge/五彩斑斓的Bug群-Bug反馈群&水群-white?style=for-the-badge&color=76bad9&logo=qq&logoColor=76bad9)](https://qm.qq.com/q/oTzIrdDBIc)
+
+_✨ “假如这个群是你的恋人，你今天的表现是顶级偶像还是败犬 NPC？”✨_
+
+<img src="https://count.getloli.com/@astrbot_plugin_love_formula?name=astrbot_plugin_love_formula&theme=booru-jaypee&padding=6&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" alt="count" />
+</div>
 
 本插件基于“恋爱动力学”逻辑，通过分析群成员每日的社交行为数据，利用大语言模型生成一份极具“二次元/亚文化”色彩的恋爱成分诊断报告。
+
 
 ---
 
