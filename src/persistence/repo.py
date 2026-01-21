@@ -1,10 +1,12 @@
 import time
 from datetime import date
+from typing import Optional, cast
 
 from sqlalchemy import and_, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from ..models.tables import LoveDailyRef, MessageOwnerIndex, UserCooldown
 from .database import DBManager
