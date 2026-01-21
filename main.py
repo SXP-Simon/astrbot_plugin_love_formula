@@ -352,9 +352,9 @@ class LoveFormulaPlugin(Star):
         old_len = len(message_list)
         # 通过onebot的群聊消息接口获取群聊消息
         while(True):
-            messages, message_id = await self.get_message(group_id, bot, message_id)
+            messages, message_id = await self.get_message(group_id, bot, message_id, self.config.get("analyze_history_count", 100))
             message_list.extend(messages)
-            if len(message_list) - old_len < 19:
+            if len(message_list) - old_len < (self.config.get("analyze_history_count", 100) - 1):
                 logger.info("[LoveFormula] 获取聊天记录完成,退出历史消息获取")
                 break
             else:
@@ -365,48 +365,23 @@ class LoveFormulaPlugin(Star):
             if len(message_list) >= max_message_n:
                 logger.info("[LoveFormula] 超过最大消息获取数量,退出历史消息获取")
                 break
-        event_list = []
-        # 获取当前使用的平台(用于生成平台消息)
-        for platform in self.context.platform_manager.get_insts():
-            if platform.config.get("id", None) == event.platform_meta.id:
-                main_platform = platform
-                break
-        else:
-            yield event.plain_result("没有成功获取到当前平台适配器")
-            return
-        # 创建AiocqhttpMessageEvent消息,用来给handle_message函数使用
-        for message in message_list:
-            abm = AstrBotMessage()
-            abm.self_id = str(message["self_id"])
-            abm.sender = MessageMember(
-                user_id=str(message["sender"]["user_id"]),
-                nickname=str(message["sender"]["nickname"])
+        if message_list:
+            stats = await self.msg_handler.backfill_from_history(
+                str(group_id), message_list
             )
-            abm.type = MessageType.GROUP_MESSAGE
-            abm.group_id = str(group_id)
-            abm.session_id = str(group_id)
-            abm.message_str = message["raw_message"]
-            abm.message = message["message"]
-            abm.timestamp = int(message["time"])
-            abm.message_id = str(message["message_id"])
-            abm.raw_message = message["raw_message"]
+            logger.info(
+                f"[LoveFormula] 成功为群 {group_id} 执行了增强型历史回填: {stats}"
+            )
+            yield event.plain_result(f"成功处理:{len(message_list)}条聊天记录")
+        else:
+            yield event.plain_result(f"历史信息获取失败")
+            logger.info(f"[LoveFormula] [retrieve_historical_records] 历史信息获取失败,获取到的消息列表为:{message_list}")
 
-            event_list.append(AiocqhttpMessageEvent(
-                message_str=abm.message_str,
-                message_obj=abm,
-                platform_meta=main_platform.meta(),
-                session_id=abm.session_id,
-                bot=main_platform.bot,
-            ))
-        # 使用handle_message函数进行学习
-        for my_event in event_list:
-            await self.msg_handler.handle_message(my_event)
-        yield event.plain_result(f"成功处理:{len(message_list)}条聊天记录")
-
-    async def get_message(self, group_id, bot, message_id):
+    async def get_message(self, group_id, bot, message_id, count):
         payloads = {
-            "group_id":group_id,
-            "message_seq":message_id
+            "group_id": group_id,
+            "message_seq": message_id,
+            "count": count
         }
         data = await bot.api.call_action('get_group_msg_history', **payloads)
         if not data:
