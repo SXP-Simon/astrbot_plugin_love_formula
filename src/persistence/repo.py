@@ -1,6 +1,6 @@
 import time
 from datetime import date
-from typing import Optional, cast
+from typing import cast
 
 from sqlalchemy import and_, select, update
 from sqlalchemy.engine import CursorResult
@@ -314,7 +314,7 @@ class LoveRepo:
                 unique_msgs = []
                 seen_ids = set()
                 for msg in msg_indexes:
-                    if not msg.message_id in seen_ids:
+                    if msg.message_id not in seen_ids:
                         seen_ids.add(msg.message_id)
                         unique_msgs.append(msg)
                 msg_indexes = unique_msgs
