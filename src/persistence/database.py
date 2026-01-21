@@ -1,9 +1,10 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
+
 
 class DBManager:
     """数据库管理器，负责异步连接和会话管理"""
@@ -18,7 +19,7 @@ class DBManager:
             pool_pre_ping=True,
             pool_recycle=3600,
             pool_size=5,
-            max_overflow = 5
+            max_overflow=5,
         )
 
         # 创建会话工厂
@@ -36,6 +37,7 @@ class DBManager:
             MessageOwnerIndex,
             UserCooldown,
         )
+
         async with self.engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
 
@@ -45,7 +47,11 @@ class DBManager:
             await conn.execute(text("PRAGMA temp_store=MEMORY"))
             await conn.execute(text("PRAGMA mmap_size=134217728"))
 
-            await conn.execute(text("CREATE INDEX IF NOT EXISTS idx_message_id ON message_owner_index(message_id)"))
+            await conn.execute(
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_message_id ON message_owner_index(message_id)"
+                )
+            )
 
             await conn.execute(text("PRAGMA optimize"))
 

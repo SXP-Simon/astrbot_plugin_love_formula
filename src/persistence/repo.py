@@ -1,15 +1,14 @@
 import time
 from datetime import date
-from typing import Optional
 
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import and_, select, update
 from sqlalchemy.engine import CursorResult
-from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.tables import LoveDailyRef, MessageOwnerIndex, UserCooldown
 from .database import DBManager
+
 
 class LoveRepo:
     """数据仓库，封装所有的数据库交互逻辑"""
@@ -18,19 +17,18 @@ class LoveRepo:
         self.db = db_manager
 
     async def get_or_create_daily_ref(
-        self,
-        session: AsyncSession,
-        group_id: str,
-        user_id: str
+        self, session: AsyncSession, group_id: str, user_id: str
     ) -> LoveDailyRef:
         """并发安全的 get_or_create"""
         today = date.today()
 
-        stmt = select(LoveDailyRef).where(and_(
-            LoveDailyRef.date == today,
-            LoveDailyRef.group_id == group_id,
-            LoveDailyRef.user_id == user_id,
-        ))
+        stmt = select(LoveDailyRef).where(
+            and_(
+                LoveDailyRef.date == today,
+                LoveDailyRef.group_id == group_id,
+                LoveDailyRef.user_id == user_id,
+            )
+        )
 
         result = await session.execute(stmt)
         record = result.scalar_one_or_none()
@@ -64,11 +62,13 @@ class LoveRepo:
         async with self.db.get_session() as session:
             stmt = (
                 update(LoveDailyRef)
-                .where(and_(
-                    LoveDailyRef.date == date.today(),
-                    LoveDailyRef.group_id == group_id,
-                    LoveDailyRef.user_id == user_id,
-                ))
+                .where(
+                    and_(
+                        LoveDailyRef.date == date.today(),
+                        LoveDailyRef.group_id == group_id,
+                        LoveDailyRef.user_id == user_id,
+                    )
+                )
                 .values(
                     msg_sent=LoveDailyRef.msg_sent + 1,
                     text_len_total=LoveDailyRef.text_len_total + text_len,
@@ -93,11 +93,13 @@ class LoveRepo:
         async with self.db.get_session() as session:
             stmt = (
                 update(LoveDailyRef)
-                .where(and_(
-                    LoveDailyRef.date == date.today(),
-                    LoveDailyRef.group_id == group_id,
-                    LoveDailyRef.user_id == user_id,
-                ))
+                .where(
+                    and_(
+                        LoveDailyRef.date == date.today(),
+                        LoveDailyRef.group_id == group_id,
+                        LoveDailyRef.user_id == user_id,
+                    )
+                )
                 .values(
                     poke_sent=LoveDailyRef.poke_sent + poke,
                     reply_sent=LoveDailyRef.reply_sent + reply,
@@ -123,11 +125,13 @@ class LoveRepo:
         async with self.db.get_session() as session:
             stmt = (
                 update(LoveDailyRef)
-                .where(and_(
-                    LoveDailyRef.date == date.today(),
-                    LoveDailyRef.group_id == group_id,
-                    LoveDailyRef.user_id == user_id,
-                ))
+                .where(
+                    and_(
+                        LoveDailyRef.date == date.today(),
+                        LoveDailyRef.group_id == group_id,
+                        LoveDailyRef.user_id == user_id,
+                    )
+                )
                 .values(
                     poke_received=LoveDailyRef.poke_received + poke,
                     reply_received=LoveDailyRef.reply_received + reply,
@@ -151,11 +155,13 @@ class LoveRepo:
         async with self.db.get_session() as session:
             stmt = (
                 update(LoveDailyRef)
-                .where(and_(
-                    LoveDailyRef.date == date.today(),
-                    LoveDailyRef.group_id == group_id,
-                    LoveDailyRef.user_id == user_id,
-                ))
+                .where(
+                    and_(
+                        LoveDailyRef.date == date.today(),
+                        LoveDailyRef.group_id == group_id,
+                        LoveDailyRef.user_id == user_id,
+                    )
+                )
                 .values(
                     topic_count=LoveDailyRef.topic_count + topic_inc,
                     repeat_count=LoveDailyRef.repeat_count + repeat_inc,
@@ -187,11 +193,11 @@ class LoveRepo:
     async def get_message_owner(
         self,
         message_id: str,
-    ) -> Optional[MessageOwnerIndex]:
+    ) -> MessageOwnerIndex | None:
         async with self.db.get_session() as session:
-            stmt = select(MessageOwnerIndex).where(and_(
-                MessageOwnerIndex.message_id == message_id
-            ))
+            stmt = select(MessageOwnerIndex).where(
+                and_(MessageOwnerIndex.message_id == message_id)
+            )
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
 
@@ -199,7 +205,7 @@ class LoveRepo:
         self,
         group_id: str,
         user_id: str,
-    ) -> Optional[LoveDailyRef]:
+    ) -> LoveDailyRef | None:
         return await self.get_data_by_date(
             group_id,
             user_id,
@@ -211,13 +217,15 @@ class LoveRepo:
         group_id: str,
         user_id: str,
         target_date: date,
-    ) -> Optional[LoveDailyRef]:
+    ) -> LoveDailyRef | None:
         async with self.db.get_session() as session:
-            stmt = select(LoveDailyRef).where(and_(
-                LoveDailyRef.date == target_date,
-                LoveDailyRef.group_id == group_id,
-                LoveDailyRef.user_id == user_id,
-            ))
+            stmt = select(LoveDailyRef).where(
+                and_(
+                    LoveDailyRef.date == target_date,
+                    LoveDailyRef.group_id == group_id,
+                    LoveDailyRef.user_id == user_id,
+                )
+            )
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
 
@@ -279,18 +287,20 @@ class LoveRepo:
                     return int(cooldown_sec - elapsed)
                 record.last_rate_at = now
             else:
-                session.add(UserCooldown(user_id=user_id, group_id=group_id, last_rate_at=now))
+                session.add(
+                    UserCooldown(user_id=user_id, group_id=group_id, last_rate_at=now)
+                )
 
             return 0
 
     async def batch_backfill(
-            self,
-            group_id: str,
-            msg_indexes: list[MessageOwnerIndex],
-            msg_stats: dict[str, dict],
-            behavior_stats: dict[str, dict],
-            interaction_sent: dict[str, dict],
-            interaction_received: dict[str, dict],
+        self,
+        group_id: str,
+        msg_indexes: list[MessageOwnerIndex],
+        msg_stats: dict[str, dict],
+        behavior_stats: dict[str, dict],
+        interaction_sent: dict[str, dict],
+        interaction_received: dict[str, dict],
     ) -> None:
         """历史回填批量写入（单事务）"""
         async with self.db.get_session() as session:
@@ -312,11 +322,13 @@ class LoveRepo:
             for uid, v in msg_stats.items():
                 await session.execute(
                     update(LoveDailyRef)
-                    .where(and_(
-                        LoveDailyRef.date == today,
-                        LoveDailyRef.group_id == group_id,
-                        LoveDailyRef.user_id == uid,
-                    ))
+                    .where(
+                        and_(
+                            LoveDailyRef.date == today,
+                            LoveDailyRef.group_id == group_id,
+                            LoveDailyRef.user_id == uid,
+                        )
+                    )
                     .values(
                         msg_sent=LoveDailyRef.msg_sent + v["msg"],
                         text_len_total=LoveDailyRef.text_len_total + v["text"],
@@ -328,11 +340,13 @@ class LoveRepo:
             for uid, v in behavior_stats.items():
                 await session.execute(
                     update(LoveDailyRef)
-                    .where(and_(
-                        LoveDailyRef.date == today,
-                        LoveDailyRef.group_id == group_id,
-                        LoveDailyRef.user_id == uid,
-                    ))
+                    .where(
+                        and_(
+                            LoveDailyRef.date == today,
+                            LoveDailyRef.group_id == group_id,
+                            LoveDailyRef.user_id == uid,
+                        )
+                    )
                     .values(
                         topic_count=LoveDailyRef.topic_count + v["topic"],
                         repeat_count=LoveDailyRef.repeat_count + v["repeat"],
@@ -343,11 +357,13 @@ class LoveRepo:
             for uid, v in interaction_sent.items():
                 await session.execute(
                     update(LoveDailyRef)
-                    .where(and_(
-                        LoveDailyRef.date == today,
-                        LoveDailyRef.group_id == group_id,
-                        LoveDailyRef.user_id == uid,
-                    ))
+                    .where(
+                        and_(
+                            LoveDailyRef.date == today,
+                            LoveDailyRef.group_id == group_id,
+                            LoveDailyRef.user_id == uid,
+                        )
+                    )
                     .values(
                         reply_sent=LoveDailyRef.reply_sent + v.get("reply", 0),
                         updated_at=now,
@@ -357,11 +373,13 @@ class LoveRepo:
             for uid, v in interaction_received.items():
                 await session.execute(
                     update(LoveDailyRef)
-                    .where(and_(
-                        LoveDailyRef.date == today,
-                        LoveDailyRef.group_id == group_id,
-                        LoveDailyRef.user_id == uid,
-                    ))
+                    .where(
+                        and_(
+                            LoveDailyRef.date == today,
+                            LoveDailyRef.group_id == group_id,
+                            LoveDailyRef.user_id == uid,
+                        )
+                    )
                     .values(
                         reply_received=LoveDailyRef.reply_received + v.get("reply", 0),
                         updated_at=now,

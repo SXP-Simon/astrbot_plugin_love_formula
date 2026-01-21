@@ -4,8 +4,8 @@ from ..analysis.collectors.ick_collector import IckCollector
 from ..analysis.collectors.nostalgia_collector import NostalgiaCollector
 from ..analysis.collectors.simp_collector import SimpCollector
 from ..analysis.collectors.vibe_collector import VibeCollector
-from ..persistence.repo import LoveRepo
 from ..models.tables import MessageOwnerIndex
+from ..persistence.repo import LoveRepo
 
 
 class MessageHandler:
@@ -147,14 +147,18 @@ class MessageHandler:
                             at_targets.append(str(d["qq"]))
 
             # ===== 话题 / 复读 =====
-            topic_inc = 1 if group_last_time == 0 or (
-                    msg_time - group_last_time > self.nos_col.TOPIC_THRESHOLD
-            ) else 0
+            topic_inc = (
+                1
+                if group_last_time == 0
+                or (msg_time - group_last_time > self.nos_col.TOPIC_THRESHOLD)
+                else 0
+            )
 
-            repeat_inc = 1 if (
-                    text_content
-                    and user_history_text.get(user_id) == text_content
-            ) else 0
+            repeat_inc = (
+                1
+                if (text_content and user_history_text.get(user_id) == text_content)
+                else 0
+            )
 
             user_history_text[user_id] = text_content
 
