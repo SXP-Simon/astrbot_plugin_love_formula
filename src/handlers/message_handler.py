@@ -5,6 +5,7 @@ from ..analysis.collectors.nostalgia_collector import NostalgiaCollector
 from ..analysis.collectors.simp_collector import SimpCollector
 from ..analysis.collectors.vibe_collector import VibeCollector
 from ..persistence.repo import LoveRepo
+from ..models.tables import MessageOwnerIndex
 
 
 class MessageHandler:
@@ -80,17 +81,23 @@ class MessageHandler:
                     )
 
     async def backfill_from_history(self, group_id: str, messages: list[dict]):
-        """从历史记录中回填今日数据，仅处理基础指标与话题"""
-        from datetime import date
+        """从历史记录中回填今日数据（批量写入）"""
+        from datetime import date, datetime
 
         today = date.today()
-
-        # 按照时间从小到大排序
         sorted_messages = sorted(messages, key=lambda x: x.get("time", 0))
 
-        # 记录每位用户的统计
         group_last_time = 0
-        user_history_text = {}  # {user_id: last_text} 用于回填中的复读判定
+        user_history_text: dict[str, str] = {}
+
+        # ===== 批量缓冲区 =====
+        msg_indexes: list[MessageOwnerIndex] = []
+
+        msg_stats: dict[str, dict] = {}
+        behavior_stats: dict[str, dict] = {}
+        interaction_sent: dict[str, dict] = {}
+        interaction_received: dict[str, dict] = {}
+
         stats = {
             "msg_count": 0,
             "image_count": 0,
@@ -102,20 +109,14 @@ class MessageHandler:
 
         for msg in sorted_messages:
             msg_time = msg.get("time", 0)
-            # 仅处理今天的消息
-            import datetime
-
-            dt = datetime.datetime.fromtimestamp(msg_time)
-            if dt.date() != today:
+            if datetime.fromtimestamp(msg_time).date() != today:
                 continue
 
             msg_id = str(msg.get("message_id", ""))
             if not msg_id:
                 continue
 
-            # 检查是否已处理过
             if await self.repo.get_message_owner(msg_id):
-                # 如果已存在，更新上下文时间但跳过统计
                 group_last_time = msg_time
                 continue
 
@@ -123,10 +124,9 @@ class MessageHandler:
             if not user_id:
                 continue
 
-            # 1. 提取内容与交互信息
             raw_message = msg.get("message", "")
             text_content = ""
-            current_images = 0
+            image_count = 0
             reply_target_msg_id = None
             at_targets = []
 
@@ -134,81 +134,80 @@ class MessageHandler:
                 text_content = raw_message
             elif isinstance(raw_message, list):
                 for seg in raw_message:
-                    s_type = seg.get("type", "")
-                    s_data = seg.get("data", {})
-                    if s_type == "text":
-                        text_content += s_data.get("text", "")
-                    elif s_type == "image":
-                        current_images += 1
-                    elif s_type == "reply":
-                        reply_target_msg_id = str(s_data.get("id"))
-                    elif s_type == "at":
-                        at_qq = s_data.get("qq")
-                        if at_qq:
-                            at_targets.append(str(at_qq))
+                    t = seg.get("type")
+                    d = seg.get("data", {})
+                    if t == "text":
+                        text_content += d.get("text", "")
+                    elif t == "image":
+                        image_count += 1
+                    elif t == "reply":
+                        reply_target_msg_id = str(d.get("id"))
+                    elif t == "at":
+                        if d.get("qq"):
+                            at_targets.append(str(d["qq"]))
 
-            # 2. 判定话题与复读 (Nos & Ick)
-            topic_inc = 0
-            if (
-                group_last_time > 0
-                and (msg_time - group_last_time) > self.nos_col.TOPIC_THRESHOLD
-            ):
-                topic_inc = 1
-            elif group_last_time == 0:
-                topic_inc = 1
+            # ===== 话题 / 复读 =====
+            topic_inc = 1 if group_last_time == 0 or (
+                    msg_time - group_last_time > self.nos_col.TOPIC_THRESHOLD
+            ) else 0
 
-            last_text = user_history_text.get(user_id, "")
-            repeat_inc = 1 if text_content and text_content == last_text else 0
+            repeat_inc = 1 if (
+                    text_content
+                    and user_history_text.get(user_id) == text_content
+            ) else 0
+
             user_history_text[user_id] = text_content
 
-            # 3. 持久化与交互处理
-            await self.repo.save_message_index(msg_id, group_id, user_id)
-            await self.repo.update_msg_stats(
-                group_id=group_id,
-                user_id=user_id,
-                text_len=len(text_content),
-                image_count=current_images,
+            # ===== 累加基础统计 =====
+            msg_stats.setdefault(user_id, {"msg": 0, "text": 0, "image": 0})
+            msg_stats[user_id]["msg"] += 1
+            msg_stats[user_id]["text"] += len(text_content)
+            msg_stats[user_id]["image"] += image_count
+
+            if topic_inc or repeat_inc:
+                behavior_stats.setdefault(user_id, {"topic": 0, "repeat": 0})
+                behavior_stats[user_id]["topic"] += topic_inc
+                behavior_stats[user_id]["repeat"] += repeat_inc
+
+            # ===== 消息索引 =====
+            msg_indexes.append(
+                MessageOwnerIndex(
+                    message_id=msg_id,
+                    group_id=group_id,
+                    user_id=user_id,
+                    timestamp=msg_time,
+                )
             )
 
-            if topic_inc > 0 or repeat_inc > 0:
-                await self.repo.update_behavior_stats(
-                    group_id, user_id, topic_inc=topic_inc, repeat_inc=repeat_inc
-                )
-                stats["topic_count"] += topic_inc
-                stats["repeat_count"] += repeat_inc
-
-            # 历史交互归因
+            # ===== 回复 / @ 交互 =====
             if reply_target_msg_id:
                 owner = await self.repo.get_message_owner(reply_target_msg_id)
                 if owner and owner.user_id != user_id:
-                    await self.repo.update_interaction_sent(group_id, user_id, reply=1)
-                    await self.repo.update_interaction_received(
-                        group_id, owner.user_id, reply=1
-                    )
+                    interaction_sent.setdefault(user_id, {"reply": 0})
+                    interaction_received.setdefault(owner.user_id, {"reply": 0})
+                    interaction_sent[user_id]["reply"] += 1
+                    interaction_received[owner.user_id]["reply"] += 1
                     stats["reply_count"] += 1
 
-            for at_target in at_targets:
-                if at_target != user_id:
-                    # 将 @ 提及回填为基础互动点数 (Vibe)
-                    await self.repo.update_interaction_received(
-                        group_id, at_target, reply=0
-                    )
+            for at_uid in at_targets:
+                if at_uid != user_id:
+                    interaction_received.setdefault(at_uid, {"reply": 0})
                     stats["at_count"] += 1
 
-            # 更新统计
             stats["msg_count"] += 1
-            stats["image_count"] += current_images
+            stats["image_count"] += image_count
+            stats["topic_count"] += topic_inc
+            stats["repeat_count"] += repeat_inc
             group_last_time = msg_time
 
-        # 更新类静态上下文（防止回填后立即说话判定错误）
-        if group_last_time > 0:
-            MessageHandler._group_last_msg_time[group_id] = group_last_time
-
-        # 同步各用户的最后文本到内存缓存，用于接下来的实时判定
-        if group_id not in MessageHandler._user_last_msg_text:
-            MessageHandler._user_last_msg_text[group_id] = {}
-
-        for uid, last_txt in user_history_text.items():
-            MessageHandler._user_last_msg_text[group_id][uid] = last_txt
+        # ===== 一次性写库 =====
+        await self.repo.batch_backfill(
+            group_id=group_id,
+            msg_indexes=msg_indexes,
+            msg_stats=msg_stats,
+            behavior_stats=behavior_stats,
+            interaction_sent=interaction_sent,
+            interaction_received=interaction_received,
+        )
 
         return stats
