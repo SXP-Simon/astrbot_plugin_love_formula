@@ -50,10 +50,11 @@ class MessageOwnerIndex(SQLModel, table=True):
 
 
 class UserCooldown(SQLModel, table=True):
-    """用户指令触发冷却记录"""
+    """用户指令触发冷却记录（按群组隔离）"""
 
     __tablename__ = "user_cooldown"
     __table_args__ = {"extend_existing": True}
 
     user_id: str = Field(primary_key=True)
+    group_id: str = Field(primary_key=True)
     last_rate_at: float = Field(default=0.0)

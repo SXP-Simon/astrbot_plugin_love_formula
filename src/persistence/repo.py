@@ -253,19 +253,23 @@ class LoveRepo:
             for e in honor_data.get("emotion", []):
                 uid = str(e.get("user_id"))
                 if uid:
-                    await apply(uid, image_sent=5, topic_count=2)
-
-            return honor_count
+                    ref = await self.get_or_create_daily_ref(session, group_id, uid)
+                    ref.image_sent += 5
+                    ref.topic_count += 2
+                    ref.updated_at = time.time()
+                    honor_count += 1
+        return honor_count
 
     async def check_and_update_cooldown(
-        self,
-        user_id: str,
-        cooldown_sec: int,
+        self, user_id: str, group_id: str, cooldown_sec: int
     ) -> int:
+        """检查并更新冷却时间（按群组隔离）。返回 0 表示通过并已更新；返回正数表示剩余秒数"""
+        now = time.time()
         async with self.db.get_session() as session:
-            now = time.time()
-
-            stmt = select(UserCooldown).where(and_(UserCooldown.user_id == user_id))
+            stmt = select(UserCooldown).where(
+                UserCooldown.user_id == user_id,
+                UserCooldown.group_id == group_id,
+            )
             result = await session.execute(stmt)
             record = result.scalar_one_or_none()
 
@@ -275,7 +279,7 @@ class LoveRepo:
                     return int(cooldown_sec - elapsed)
                 record.last_rate_at = now
             else:
-                session.add(UserCooldown(user_id=user_id, last_rate_at=now))
+                session.add(UserCooldown(user_id=user_id, group_id=group_id, last_rate_at=now))
 
             return 0
 
