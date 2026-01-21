@@ -375,9 +375,10 @@ class LoveFormulaPlugin(Star):
             messages, message_id = await self.get_message(
                 group_id, bot, message_id, self.config.get("analyze_history_count", 100)
             )
-            message_list.extend(messages)
+            if not messages:
+                message_list.extend(messages[:-1])
             if len(message_list) - old_len < (
-                self.config.get("analyze_history_count", 100) - 1
+                self.config.get("analyze_history_count", 100) - 2
             ):
                 logger.info("[LoveFormula] 获取聊天记录完成,退出历史消息获取")
                 break
