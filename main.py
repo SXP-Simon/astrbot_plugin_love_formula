@@ -111,11 +111,11 @@ class LoveFormulaPlugin(Star):
         group_id = event.message_obj.group_id
         sender_id = event.message_obj.sender.user_id
 
-        # 0. 指令节流 (按发送者 ID)
+        # 0. 指令节流 (按发送者 ID 和群组 ID)
         cooldown_sec = self.config.get("command_cooldown", 60)
         if cooldown_sec > 0 and group_id:
             remaining = await self.repo.check_and_update_cooldown(
-                sender_id, cooldown_sec
+                sender_id, str(group_id), cooldown_sec
             )
             if remaining > 0:
                 yield event.plain_result(

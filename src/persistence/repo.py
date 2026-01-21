@@ -170,11 +170,16 @@ class LoveRepo:
                     honor_count += 1
         return honor_count
 
-    async def check_and_update_cooldown(self, user_id: str, cooldown_sec: int) -> int:
-        """检查并更新冷却时间。返回 0 表示通过并已更新；返回正数表示剩余秒数"""
+    async def check_and_update_cooldown(
+        self, user_id: str, group_id: str, cooldown_sec: int
+    ) -> int:
+        """检查并更新冷却时间（按群组隔离）。返回 0 表示通过并已更新；返回正数表示剩余秒数"""
         now = time.time()
         async with self.db.get_session() as session:
-            stmt = select(UserCooldown).where(UserCooldown.user_id == user_id)
+            stmt = select(UserCooldown).where(
+                UserCooldown.user_id == user_id,
+                UserCooldown.group_id == group_id,
+            )
             result = await session.execute(stmt)
             record = result.scalar_one_or_none()
 
@@ -183,7 +188,9 @@ class LoveRepo:
                     return int(cooldown_sec - (now - record.last_rate_at))
                 record.last_rate_at = now
             else:
-                record = UserCooldown(user_id=user_id, last_rate_at=now)
+                record = UserCooldown(
+                    user_id=user_id, group_id=group_id, last_rate_at=now
+                )
 
             session.add(record)
             return 0
