@@ -1,4 +1,6 @@
 import os
+import asyncio
+from datetime import date, timedelta, datetime
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
@@ -8,7 +10,6 @@ from astrbot.core.config import AstrBotConfig
 from astrbot.core.message.components import At, Image, Reply
 from astrbot.core.star import Star
 from astrbot.core.star.context import Context
-from astrbot.api.platform import AstrBotMessage, MessageMember, MessageType
 
 from .src.analysis.calculator import LoveCalculator
 from .src.analysis.classifier import ArchetypeClassifier
@@ -235,33 +236,51 @@ class LoveFormulaPlugin(Star):
             # 获取对应的 Provider ID
             global_provider = self.config.get("llm_provider_id", "")
             commentary_provider = (
-                self.config.get("commentary_provider_id", "") or global_provider
+                    self.config.get("commentary_provider_id", "") or global_provider
             )
             deep_dive_provider = (
-                self.config.get("deep_dive_provider_id", "") or global_provider
+                    self.config.get("deep_dive_provider_id", "") or global_provider
             )
 
-            # 4.1 Basic Commentary (No Context)
-            llm_result = await self.llm.generate_commentary(
-                scores, archetype_name, raw_data_dict, provider_id=commentary_provider
-            )
+            async def _commentary_task():
+                return await self.llm.generate_commentary(
+                    scores, archetype_name, raw_data_dict, provider_id=commentary_provider
+                )
 
-            # 4.2 Deep Dive (Context Driven)
+            async def _deep_dive_task():
+                chat_context = await self.history_fetcher.fetch_context(
+                    event, user_id
+                )
+                if not chat_context:
+                    return None
+                return await self.llm.generate_deep_dive(
+                    scores,
+                    archetype_name,
+                    raw_data_dict,
+                    chat_context,
+                    provider_id=deep_dive_provider,
+                )
+
+            tasks = [asyncio.create_task(_commentary_task())]
+
             if self.config.get("enable_history_analysis", True):
-                try:
-                    chat_context = await self.history_fetcher.fetch_context(
-                        event, user_id
-                    )
-                    if chat_context:
-                        deep_dive_result = await self.llm.generate_deep_dive(
-                            scores,
-                            archetype_name,
-                            raw_data_dict,
-                            chat_context,
-                            provider_id=deep_dive_provider,
-                        )
-                except Exception as e:
-                    logger.warning(f"Failed to fetch/analyze chat history: {e}")
+                tasks.append(asyncio.create_task(_deep_dive_task()))
+
+            try:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                # commentary 结果
+                if results and isinstance(results[0], dict):
+                    llm_result = results[0]
+
+                # deep dive 结果
+                if len(results) > 1 and isinstance(results[1], dict):
+                    deep_dive_result = results[1]
+
+            except Exception as e:
+                logger.warning(f"LLM 调用异常: {e}")
+                llm_result["comment"] = "分析模块异常，本次使用备用解读。"
+
             else:
                 logger.debug("History analysis disabled by config.")
         else:
