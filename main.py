@@ -349,7 +349,7 @@ class LoveFormulaPlugin(Star):
     @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP)
     @filter.command("学习")
     async def retrieve_historical_records(self, event: AiocqhttpMessageEvent):
-        """从回复的消息开始学习聊天记录到现在"""
+        """从回复的消息开始学习聊天记录到现在，避免刚刚安装插件没有数据的冷启动问题"""
         # 防止内存占用过大(最大消息数量)
         max_message_n = 500
         group_id = event.get_group_id()
