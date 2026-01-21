@@ -1,10 +1,13 @@
 import os
+import asyncio
+from datetime import date, timedelta, datetime
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.event.filter import CustomFilter, EventMessageType
+from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import AiocqhttpMessageEvent
 from astrbot.core.config import AstrBotConfig
-from astrbot.core.message.components import At, Image
+from astrbot.core.message.components import At, Image, Reply
 from astrbot.core.star import Star
 from astrbot.core.star.context import Context
 
@@ -233,33 +236,51 @@ class LoveFormulaPlugin(Star):
             # 获取对应的 Provider ID
             global_provider = self.config.get("llm_provider_id", "")
             commentary_provider = (
-                self.config.get("commentary_provider_id", "") or global_provider
+                    self.config.get("commentary_provider_id", "") or global_provider
             )
             deep_dive_provider = (
-                self.config.get("deep_dive_provider_id", "") or global_provider
+                    self.config.get("deep_dive_provider_id", "") or global_provider
             )
 
-            # 4.1 Basic Commentary (No Context)
-            llm_result = await self.llm.generate_commentary(
-                scores, archetype_name, raw_data_dict, provider_id=commentary_provider
-            )
+            async def _commentary_task():
+                return await self.llm.generate_commentary(
+                    scores, archetype_name, raw_data_dict, provider_id=commentary_provider
+                )
 
-            # 4.2 Deep Dive (Context Driven)
+            async def _deep_dive_task():
+                chat_context = await self.history_fetcher.fetch_context(
+                    event, user_id
+                )
+                if not chat_context:
+                    return None
+                return await self.llm.generate_deep_dive(
+                    scores,
+                    archetype_name,
+                    raw_data_dict,
+                    chat_context,
+                    provider_id=deep_dive_provider,
+                )
+
+            tasks = [asyncio.create_task(_commentary_task())]
+
             if self.config.get("enable_history_analysis", True):
-                try:
-                    chat_context = await self.history_fetcher.fetch_context(
-                        event, user_id
-                    )
-                    if chat_context:
-                        deep_dive_result = await self.llm.generate_deep_dive(
-                            scores,
-                            archetype_name,
-                            raw_data_dict,
-                            chat_context,
-                            provider_id=deep_dive_provider,
-                        )
-                except Exception as e:
-                    logger.warning(f"Failed to fetch/analyze chat history: {e}")
+                tasks.append(asyncio.create_task(_deep_dive_task()))
+
+            try:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+
+                # commentary 结果
+                if results and isinstance(results[0], dict):
+                    llm_result = results[0]
+
+                # deep dive 结果
+                if len(results) > 1 and isinstance(results[1], dict):
+                    deep_dive_result = results[1]
+
+            except Exception as e:
+                logger.warning(f"LLM 调用异常: {e}")
+                llm_result["comment"] = "分析模块异常，本次使用备用解读。"
+
             else:
                 logger.debug("History analysis disabled by config.")
         else:
@@ -323,6 +344,73 @@ class LoveFormulaPlugin(Star):
         except Exception as e:
             logger.error(f"Render failed: {e}", exc_info=True)
             yield event.plain_result(f"生成失败: {e}")
+
+    @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP)
+    @filter.command("学习")
+    async def retrieve_historical_records(self, event: AiocqhttpMessageEvent):
+        """从回复的消息开始学习聊天记录到现在"""
+        # 防止内存占用过大(最大消息数量)
+        max_message_n = 500
+        group_id = event.get_group_id()
+        if not group_id:
+            yield event.plain_result("请在群聊中使用此指令")
+            return
+        bot = getattr(event, "bot", None)
+        if bot is None:
+            return
+        chain = event.get_messages()
+        if not chain:
+            return
+        reply: Reply | None = chain[0] if isinstance(chain[0], Reply) else None
+        if not reply or not reply.chain:
+            yield event.plain_result("使用此命令请回复消息")
+            return
+        yield event.plain_result("开始获取历史消息...")
+        message_id = reply.id
+        message_list = []
+        old_len = len(message_list)
+        # 通过onebot的群聊消息接口获取群聊消息
+        while(True):
+            messages, message_id = await self.get_message(group_id, bot, message_id, self.config.get("analyze_history_count", 100))
+            message_list.extend(messages)
+            if len(message_list) - old_len < (self.config.get("analyze_history_count", 100) - 1):
+                logger.info("[LoveFormula] 获取聊天记录完成,退出历史消息获取")
+                break
+            else:
+                old_len = len(message_list)
+            if message_id is None:
+                logger.info("[LoveFormula] onebot接口获取失败,退出历史消息获取")
+                break
+            if len(message_list) >= max_message_n:
+                logger.info("[LoveFormula] 超过最大消息获取数量,退出历史消息获取")
+                break
+        if message_list:
+            stats = await self.msg_handler.backfill_from_history(
+                str(group_id), message_list
+            )
+            logger.info(
+                f"[LoveFormula] 成功为群 {group_id} 执行了增强型历史回填: {stats}"
+            )
+            yield event.plain_result(f"成功处理:{len(message_list)}条聊天记录")
+        else:
+            yield event.plain_result(f"历史信息获取失败")
+            logger.info(f"[LoveFormula] [retrieve_historical_records] 历史信息获取失败,获取到的消息列表为:{message_list}")
+
+    async def get_message(self, group_id, bot, message_id, count):
+        payloads = {
+            "group_id": group_id,
+            "message_seq": message_id,
+            "count": count
+        }
+        data = await bot.api.call_action('get_group_msg_history', **payloads)
+        if not data:
+            return [], None
+        else:
+            try:
+                return data["messages"], data["messages"][-1]["message_id"]
+            except Exception as e:
+                logger.error(f"[LoveFormula] 解析历史消息失败 e:{e}", exc_info=True)
+                return [], None
 
     def _construct_latex_equation(self, scores: dict, raw_data: dict) -> str:
         """根据公式生成 LaTeX 字符串"""
