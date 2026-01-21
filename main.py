@@ -113,28 +113,6 @@ class LoveFormulaPlugin(Star):
     @filter.command("今日人设")
     async def cmd_love_profile(self, event: AstrMessageEvent):
         """生成每日恋爱成分分析报告"""
-        group_id = event.message_obj.group_id
-        sender_id = event.message_obj.sender.user_id
-
-        # 0. 指令节流 (按发送者 ID 和群组 ID)
-        cooldown_sec = self.config.get("command_cooldown", 60)
-        if cooldown_sec > 0 and group_id:
-            remaining = await self.repo.check_and_update_cooldown(
-                sender_id, str(group_id), cooldown_sec
-            )
-            if remaining > 0:
-                yield event.plain_result(
-                    f"☕ 稍安勿躁，分析仪正在冷却中... (剩余 {remaining} 秒)"
-                )
-                return
-
-        # 提示正在生成
-        yield event.plain_result("☕ 正在调取卷宗并进行赛博心理剖析，请稍候...")
-
-        user_id = sender_id
-        nickname = event.message_obj.sender.nickname
-        # Disable default LLM reply for this command.
-        event.should_call_llm(True)
 
         # 0. 检查是否为指定分析（被 at 的人）
         targeted_user_id = None
@@ -152,19 +130,69 @@ class LoveFormulaPlugin(Star):
                 )
                 break
 
-        if targeted_user_id:
-            user_id = targeted_user_id
-            nickname = targeted_nickname
+        async for result in self._handle_love_profile(
+            event, targeted_user_id, targeted_nickname
+        ):
+            yield result
+
+    @filter.llm_tool(name="analyze_love_persona")
+    async def get_user_love_profile(self, event: AstrMessageEvent, user_id: str = None):
+        """分析指定用户或是发送者本人的今日赛博恋爱人设。
+
+        Args:
+            user_id(string): 可选。要分析的用户的 QQ 号或者 ID。如果不填，则分析发送者本人。
+        """
+        async for result in self._handle_love_profile(event, user_id):
+            yield result
+
+    async def _handle_love_profile(
+        self,
+        event: AstrMessageEvent,
+        target_user_id: str = None,
+        target_nickname: str = None,
+    ):
+        """核心业务逻辑：生成每日恋爱成分分析报告"""
+        group_id = event.message_obj.group_id
+        sender_id = event.message_obj.sender.user_id
 
         if not group_id:
-            yield event.plain_result("请在群聊中使用此指令。")
+            yield event.plain_result("请在群聊中使用此功能。")
             return
 
-        # 1. 获取数据回溯
         if not self._is_group_allowed(group_id):
             yield event.plain_result("此群未启用恋爱分析功能。")
             return
 
+        # 0. 指令节流 (按发送者 ID 和群组 ID)
+        cooldown_sec = self.config.get("command_cooldown", 60)
+        if cooldown_sec > 0 and group_id:
+            remaining = await self.repo.check_and_update_cooldown(
+                sender_id, str(group_id), cooldown_sec
+            )
+            if remaining > 0:
+                yield event.plain_result(
+                    f"☕ 稍安勿躁，分析仪正在冷却中... (剩余 {remaining} 秒)"
+                )
+                return
+
+        # 提示正在生成
+        yield event.plain_result("☕ 正在调取卷宗并进行赛博心理剖析，请稍候...")
+
+        user_id = target_user_id if target_user_id else sender_id
+        nickname = (
+            target_nickname
+            if target_nickname
+            else (
+                event.message_obj.sender.nickname
+                if user_id == sender_id
+                else f"用户{user_id}"
+            )
+        )
+
+        # Disable default LLM reply for this command.
+        event.should_call_llm(True)
+
+        # 1. 获取数据回溯
         # --- 深度冷启动回填与荣誉同步 ---
         today_data = await self.repo.get_today_data(group_id, user_id)
         if not today_data or today_data.msg_sent < 3:
@@ -196,7 +224,6 @@ class LoveFormulaPlugin(Star):
         # ---------------------
 
         # 尝试获取昨日得分作为白月光值
-
         yesterday = date.today() - timedelta(days=1)
         yesterday_data = await self.repo.get_data_by_date(group_id, user_id, yesterday)
         yesterday_score = 0
@@ -210,9 +237,7 @@ class LoveFormulaPlugin(Star):
         # 检查配置中的阈值
         min_msg = self.config.get("min_msg_threshold", 3)
         if not daily_data or daily_data.msg_sent < min_msg:
-            prefix = (
-                "你" if user_id == event.message_obj.sender.user_id else f"{nickname}"
-            )
+            prefix = "你" if user_id == sender_id else f"{nickname}"
             yield event.plain_result(
                 f"{prefix}今天太沉默了（发言少于{min_msg}条），甚至无法测算出恋爱成分。"
             )
@@ -224,7 +249,6 @@ class LoveFormulaPlugin(Star):
         )
 
         # 3. 归类人设
-
         archetype_key, archetype_name = ArchetypeClassifier.classify(scores)
 
         # 4. LLM 分析 (获取判词和诊断) - Data Driven
