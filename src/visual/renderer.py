@@ -3,6 +3,7 @@ import os
 import re
 
 import aiohttp
+import asyncio
 from jinja2 import Environment, FileSystemLoader
 
 from astrbot.api import logger
@@ -31,52 +32,48 @@ class LoveRenderer:
         logger.info(f"开始渲染图片，主题: {theme_name}")
 
         async with aiohttp.ClientSession() as session:
-            # 1. Process Main Avatar
-            if data.get("avatar_url") and data["avatar_url"].startswith("http"):
-                try:
-                    async with session.get(data["avatar_url"], timeout=5) as resp:
-                        if resp.status == 200:
-                            content = await resp.read()
-                            b64 = base64.b64encode(content).decode()
-                            data["avatar_url"] = f"data:image/jpeg;base64,{b64}"
-                        else:
-                            data["avatar_url"] = DEFAULT_AVATAR
-                except Exception as e:
-                    logger.warning(f"Failed to fetch main avatar: {e}")
-                    data["avatar_url"] = DEFAULT_AVATAR
-            elif not data.get("avatar_url"):
+            # ---------- 1. 主头像处理 ----------
+            avatar_url = data.get("avatar_url")
+            if avatar_url and avatar_url.startswith("http"):
+                # 改动：将原来的顺序下载改为调用 _fetch_avatar 异步函数
+                async def _fetch_avatar(url: str) -> str:
+                    try:
+                        async with session.get(url, timeout=5) as resp:
+                            if resp.status == 200:
+                                content = await resp.read()
+                                return f"data:image/jpeg;base64,{base64.b64encode(content).decode()}"
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch avatar {url}: {e}")
+                    return DEFAULT_AVATAR
+
+                data["avatar_url"] = await _fetch_avatar(avatar_url)
+            elif not avatar_url:
                 data["avatar_url"] = DEFAULT_AVATAR
 
-            # 2. Process Evidence Avatars
+            # ---------- 2. Deep Dive 证据头像并行下载 ----------
+            # 原顺序循环下载改为收集所有待下载任务，然后 asyncio.gather 并行下载
+            tasks = []
+            dialogues_to_update = []
             if data.get("deep_dive") and data["deep_dive"].get("evidence"):
                 for scene in data["deep_dive"]["evidence"]:
                     for dialog in scene.get("dialogue", []):
                         uid = dialog.get("user_id")
-                        # Already base64 check
-                        if dialog.get("avatar_url") and dialog["avatar_url"].startswith(
-                            "data:"
-                        ):
+                        # 跳过已经是 base64 或无 uid 的
+                        if dialog.get("avatar_url", "").startswith("data:") or not uid:
                             continue
+                        url = f"https://q1.qlogo.cn/g?b=qq&nk={uid}&s=100"
+                        # 每个任务返回 base64 头像
+                        tasks.append(_fetch_avatar(url))
+                        dialogues_to_update.append(dialog)
 
-                        if uid:
-                            try:
-                                url = f"https://q1.qlogo.cn/g?b=qq&nk={uid}&s=100"
-                                async with session.get(url, timeout=5) as resp:
-                                    if resp.status == 200:
-                                        content = await resp.read()
-                                        b64 = base64.b64encode(content).decode()
-                                        dialog["avatar_url"] = (
-                                            f"data:image/jpeg;base64,{b64}"
-                                        )
-                                    else:
-                                        dialog["avatar_url"] = DEFAULT_AVATAR
-                            except Exception as e:
-                                logger.warning(f"Failed to fetch avatar for {uid}: {e}")
-                                dialog["avatar_url"] = DEFAULT_AVATAR
-                        else:
-                            dialog["avatar_url"] = DEFAULT_AVATAR
+                if tasks:
+                    # 并行下载所有头像
+                    results = await asyncio.gather(*tasks)
+                    # 将下载结果回填到对应 dialogue
+                    for dialog, avatar_b64 in zip(dialogues_to_update, results):
+                        dialog["avatar_url"] = avatar_b64
 
-            # 3. Process Theme Assets (e.g., header_bg.png)
+            # ---------- 3. 模板资源（header_bg.png） ----------
             asset_dir = self.theme_manager.get_asset_dir(theme_name)
             header_bg_path = os.path.join(asset_dir, "header_bg.png")
             header_bg_b64 = ""
@@ -86,7 +83,7 @@ class LoveRenderer:
                         f"data:image/png;base64,{base64.b64encode(f.read()).decode()}"
                     )
 
-        # 1. 加载模板
+        # ---------- 后续模板加载、渲染逻辑保持不变 ----------
         template_name = f"{theme_name}/template.html"
         try:
             template = self.env.get_template(template_name)
