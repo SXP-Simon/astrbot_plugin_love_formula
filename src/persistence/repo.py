@@ -276,10 +276,10 @@ class LoveRepo:
         """检查并更新冷却时间（按群组隔离）。返回 0 表示通过并已更新；返回正数表示剩余秒数"""
         now = time.time()
         async with self.db.get_session() as session:
-            stmt = select(UserCooldown).where(
+            stmt = select(UserCooldown).where(and_(
                 UserCooldown.user_id == user_id,
                 UserCooldown.group_id == group_id,
-            )
+            ))
             result = await session.execute(stmt)
             record = result.scalar_one_or_none()
 
