@@ -32,20 +32,19 @@ class LoveRenderer:
         logger.info(f"开始渲染图片，主题: {theme_name}")
 
         async with aiohttp.ClientSession() as session:
+            async def _fetch_avatar(url: str) -> str:
+                try:
+                    async with session.get(url, timeout=5) as resp:
+                        if resp.status == 200:
+                            content = await resp.read()
+                            return f"data:image/jpeg;base64,{base64.b64encode(content).decode()}"
+                except Exception as e:
+                    logger.warning(f"Failed to fetch avatar {url}: {e}")
+                return DEFAULT_AVATAR
+
             # ---------- 1. 主头像处理 ----------
             avatar_url = data.get("avatar_url")
             if avatar_url and avatar_url.startswith("http"):
-                # 改动：将原来的顺序下载改为调用 _fetch_avatar 异步函数
-                async def _fetch_avatar(url: str) -> str:
-                    try:
-                        async with session.get(url, timeout=5) as resp:
-                            if resp.status == 200:
-                                content = await resp.read()
-                                return f"data:image/jpeg;base64,{base64.b64encode(content).decode()}"
-                    except Exception as e:
-                        logger.warning(f"Failed to fetch avatar {url}: {e}")
-                    return DEFAULT_AVATAR
-
                 data["avatar_url"] = await _fetch_avatar(avatar_url)
             elif not avatar_url:
                 data["avatar_url"] = DEFAULT_AVATAR
