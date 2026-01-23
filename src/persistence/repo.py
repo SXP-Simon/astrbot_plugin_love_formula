@@ -277,8 +277,10 @@ class LoveRepo:
         now = time.time()
         async with self.db.get_session() as session:
             stmt = select(UserCooldown).where(
-                UserCooldown.user_id == user_id,
-                UserCooldown.group_id == group_id,
+                and_(
+                    UserCooldown.user_id == user_id,
+                    UserCooldown.group_id == group_id,
+                )
             )
             result = await session.execute(stmt)
             record = result.scalar_one_or_none()
@@ -410,3 +412,19 @@ class LoveRepo:
                         updated_at=now,
                     )
                 )
+
+    async def filter_existing_message_ids(self, message_ids: list[str]) -> set[str]:
+        """
+        批量查询已存在的 message_id
+        返回：已存在的 message_id 集合
+        """
+        if not message_ids:
+            return set()
+
+        async with self.db.get_session() as session:
+            message_id_col = cast(ColumnElement[str], MessageOwnerIndex.message_id)
+            stmt = select(MessageOwnerIndex.message_id).where(
+                message_id_col.in_(message_ids)
+            )
+            result = await session.execute(stmt)
+            return {row[0] for row in result.all()}

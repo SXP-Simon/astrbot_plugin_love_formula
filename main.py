@@ -390,7 +390,7 @@ class LoveFormulaPlugin(Star):
         if not reply or not reply.chain:
             yield event.plain_result("使用此命令请回复消息")
             return
-        yield event.plain_result("开始获取历史消息...")
+        yield event.plain_result("☕ 开始获取历史消息...")
         message_id = reply.id
         message_list = []
         old_len = len(message_list)

@@ -87,6 +87,12 @@ class MessageHandler:
         today = date.today()
         sorted_messages = sorted(messages, key=lambda x: x.get("time", 0))
 
+        # 提前收集 message_id，并批量查询已存在的 message
+        all_msg_ids = [
+            str(m.get("message_id")) for m in sorted_messages if m.get("message_id")
+        ]
+        existed_msg_ids = await self.repo.filter_existing_message_ids(all_msg_ids)
+
         group_last_time = 0
         user_history_text: dict[str, str] = {}
 
@@ -107,6 +113,9 @@ class MessageHandler:
             "at_count": 0,
         }
 
+        # 输入消息列表自身去重（防止历史数据本身重复）
+        seen_msg_ids: set[str] = set()
+
         for msg in sorted_messages:
             msg_time = msg.get("time", 0)
             if datetime.fromtimestamp(msg_time).date() != today:
@@ -116,7 +125,13 @@ class MessageHandler:
             if not msg_id:
                 continue
 
-            if await self.repo.get_message_owner(msg_id):
+            # message_id 去重
+            if msg_id in seen_msg_ids:
+                continue
+            seen_msg_ids.add(msg_id)
+
+            # 使用批量查询结果判断是否已存在
+            if msg_id in existed_msg_ids:
                 group_last_time = msg_time
                 continue
 

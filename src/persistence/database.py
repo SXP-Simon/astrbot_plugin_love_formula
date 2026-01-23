@@ -1,7 +1,7 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
 
@@ -38,15 +38,44 @@ class DBManager:
             UserCooldown,
         )
 
+        # 1. 创建表
         async with self.engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
 
+            def _needs_refresh(sync_conn):
+                inspector = inspect(sync_conn)
+                if "user_cooldown" not in inspector.get_table_names():
+                    return True
+                existing_columns = {
+                    col["name"] for col in inspector.get_columns("user_cooldown")
+                }
+                required_columns = set(UserCooldown.__table__.columns.keys())
+                if existing_columns != required_columns:
+                    return True
+                return False
+
+            needs_refresh = await conn.run_sync(_needs_refresh)
+            if needs_refresh:
+                await conn.run_sync(
+                    lambda sync_conn: UserCooldown.__table__.drop(
+                        sync_conn, checkfirst=True
+                    )
+                )
+                await conn.run_sync(
+                    lambda sync_conn: UserCooldown.__table__.create(
+                        sync_conn, checkfirst=True
+                    )
+                )
+
+        # 2. SQLite 优化 PRAGMA
+        async with self.engine.connect() as conn:
             await conn.execute(text("PRAGMA journal_mode=WAL"))
             await conn.execute(text("PRAGMA synchronous=NORMAL"))
             await conn.execute(text("PRAGMA cache_size=-20000"))
             await conn.execute(text("PRAGMA temp_store=MEMORY"))
             await conn.execute(text("PRAGMA mmap_size=134217728"))
 
+            # 确认表名正确
             await conn.execute(
                 text(
                     "CREATE INDEX IF NOT EXISTS idx_message_id ON message_owner_index(message_id)"
