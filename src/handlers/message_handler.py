@@ -89,9 +89,7 @@ class MessageHandler:
 
         # 提前收集 message_id，并批量查询已存在的 message
         all_msg_ids = [
-            str(m.get("message_id"))
-            for m in sorted_messages
-            if m.get("message_id")
+            str(m.get("message_id")) for m in sorted_messages if m.get("message_id")
         ]
         existed_msg_ids = await self.repo.filter_existing_message_ids(all_msg_ids)
 
@@ -167,7 +165,7 @@ class MessageHandler:
             topic_inc = (
                 1
                 if group_last_time == 0
-                   or (msg_time - group_last_time > self.nos_col.TOPIC_THRESHOLD)
+                or (msg_time - group_last_time > self.nos_col.TOPIC_THRESHOLD)
                 else 0
             )
 

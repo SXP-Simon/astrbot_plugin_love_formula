@@ -1,9 +1,9 @@
+import asyncio
 import base64
 import os
 import re
 
 import aiohttp
-import asyncio
 from jinja2 import Environment, FileSystemLoader
 
 from astrbot.api import logger
@@ -32,6 +32,7 @@ class LoveRenderer:
         logger.info(f"开始渲染图片，主题: {theme_name}")
 
         async with aiohttp.ClientSession() as session:
+
             async def _fetch_avatar(url: str) -> str:
                 try:
                     async with session.get(url, timeout=5) as resp:

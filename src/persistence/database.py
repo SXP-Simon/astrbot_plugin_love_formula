@@ -46,7 +46,9 @@ class DBManager:
                 inspector = inspect(sync_conn)
                 if "user_cooldown" not in inspector.get_table_names():
                     return True
-                existing_columns = {col["name"] for col in inspector.get_columns("user_cooldown")}
+                existing_columns = {
+                    col["name"] for col in inspector.get_columns("user_cooldown")
+                }
                 required_columns = set(UserCooldown.__table__.columns.keys())
                 if existing_columns != required_columns:
                     return True
@@ -54,8 +56,16 @@ class DBManager:
 
             needs_refresh = await conn.run_sync(_needs_refresh)
             if needs_refresh:
-                await conn.run_sync(lambda sync_conn: UserCooldown.__table__.drop(sync_conn, checkfirst=True))
-                await conn.run_sync(lambda sync_conn: UserCooldown.__table__.create(sync_conn, checkfirst=True))
+                await conn.run_sync(
+                    lambda sync_conn: UserCooldown.__table__.drop(
+                        sync_conn, checkfirst=True
+                    )
+                )
+                await conn.run_sync(
+                    lambda sync_conn: UserCooldown.__table__.create(
+                        sync_conn, checkfirst=True
+                    )
+                )
 
         # 2. SQLite 优化 PRAGMA
         async with self.engine.connect() as conn:
@@ -67,7 +77,9 @@ class DBManager:
 
             # 确认表名正确
             await conn.execute(
-                text("CREATE INDEX IF NOT EXISTS idx_message_id ON message_owner_index(message_id)")
+                text(
+                    "CREATE INDEX IF NOT EXISTS idx_message_id ON message_owner_index(message_id)"
+                )
             )
 
             await conn.execute(text("PRAGMA optimize"))
