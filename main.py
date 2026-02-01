@@ -81,13 +81,14 @@ class LoveFormulaPlugin(Star):
     @filter.event_message_type(EventMessageType.GROUP_MESSAGE)
     async def on_group_message(self, event: AstrMessageEvent):
         """处理群消息监听"""
-        if not self._is_group_allowed(event.message_obj.group_id):
-            return
-
         # 检查是否为 notice 事件（戳一戳、表情回应、撤回等）
+        # Notice 事件需要在群组过滤之前处理，以支持全局监听
         raw = event.message_obj.raw_message
         if isinstance(raw, dict) and raw.get("post_type") == "notice":
             await self.notice_handler.handle_notice(raw)
+            return
+
+        if not self._is_group_allowed(event.message_obj.group_id):
             return
 
         logger.debug(
