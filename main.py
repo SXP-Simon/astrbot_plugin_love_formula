@@ -4,8 +4,7 @@ from datetime import date, datetime, timedelta
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.event.filter import CustomFilter, EventMessageType
-from astrbot.core.config import AstrBotConfig
+from astrbot.api.event.filter import EventMessageType
 from astrbot.core.message.components import At, Image, Reply
 from astrbot.core.platform.sources.aiocqhttp.aiocqhttp_message_event import (
     AiocqhttpMessageEvent,
@@ -23,16 +22,6 @@ from .src.persistence.database import DBManager
 from .src.persistence.repo import LoveRepo
 from .src.visual.renderer import LoveRenderer
 from .src.visual.theme_manager import ThemeManager
-
-
-class NoticeFilter(CustomFilter):
-    def filter(self, event: AstrMessageEvent, cfg: AstrBotConfig) -> bool:
-        if not event.message_obj.raw_message:
-            return False
-        raw = event.message_obj.raw_message
-        if isinstance(raw, dict):
-            return raw.get("post_type") == "notice"
-        return False
 
 
 class LoveFormulaPlugin(Star):
@@ -95,20 +84,16 @@ class LoveFormulaPlugin(Star):
         if not self._is_group_allowed(event.message_obj.group_id):
             return
 
+        # 检查是否为 notice 事件（戳一戳、表情回应、撤回等）
+        raw = event.message_obj.raw_message
+        if isinstance(raw, dict) and raw.get("post_type") == "notice":
+            await self.notice_handler.handle_notice(raw)
+            return
+
         logger.debug(
             f"[LoveFormula] on_group_message 触发: {event.message_obj.message_id}"
         )
         await self.msg_handler.handle_message(event)
-
-    @filter.custom_filter(NoticeFilter)
-    async def on_notice(self, event: AstrMessageEvent):
-        """
-        处理 Notice 事件 (OneBot V11)。
-        注意：逻辑取决于 AstrBot 如何封装 notice 事件。
-        假设 event.raw_data 包含 OneBot 负载。
-        """
-        if hasattr(event, "message_obj") and event.message_obj.raw_message:
-            await self.notice_handler.handle_notice(event.message_obj.raw_message)
 
     @filter.command("今日人设")
     async def cmd_love_profile(self, event: AstrMessageEvent):
@@ -390,7 +375,7 @@ class LoveFormulaPlugin(Star):
         if not reply or not reply.chain:
             yield event.plain_result("使用此命令请回复消息")
             return
-        yield event.plain_result("☕ 开始获取历史消息...")
+        yield event.plain_result("开始获取历史消息...")
         message_id = reply.id
         message_list = []
         old_len = len(message_list)
