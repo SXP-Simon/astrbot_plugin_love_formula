@@ -82,6 +82,12 @@ _✨ “假如这个群是你的恋人，你今天的表现是顶级偶像还是
 
 ---
 
+## 🧪 测试与产物治理
+
+轻量验证脚本、示例卡片渲染方式，以及运行时数据库/生成产物的提交规则见 [docs/testing.md](docs/testing.md)。提交新的 fixture、snapshot 或文档资产前，请先确认其中不包含真实群聊或用户隐私数据。
+
+---
+
 ## 🔗 关于
 - **Author**: SXP-Simon
 - **Repository**: [GitHub](https://github.com/SXP-Simon/astrbot_plugin_love_formula)

@@ -109,7 +109,7 @@ ipython_config.py
 #poetry.toml
 
 # pdm
-#   Similar to Pipfile.lock, it is generally recommended to include pdm.lock in version control.
+#   Similar to Pipfile.lock, it is recommended to include pdm.lock in version control.
 #   pdm recommends including project-wide configuration in pdm.toml, but excluding .pdm-python.
 #   https://pdm-project.org/en/latest/usage/project/#working-with-version-control
 #pdm.lock
@@ -209,10 +209,11 @@ __marimo__/
 
 # AstrBot/local runtime state
 # Keep generated group/user data and SQLite runtime databases out of git.
+# Intentional fixtures/snapshots remain trackable under tests/fixtures/ or
+# tests/snapshots/; document them in docs/testing.md before committing.
 data/*
-*.db
-*.sqlite
-*.sqlite3
+output/
+runtime/
 *.db-journal
 *.db-wal
 *.db-shm
@@ -221,3 +222,5 @@ data/*
 # Committed snapshots or documentation examples should live in an explicitly named
 # fixtures/snapshots/docs asset path and be documented in docs/testing.md.
 tests/output/
+!tests/fixtures/**
+!tests/snapshots/**
